@@ -12,7 +12,7 @@
       ]
     }
   },
-  "name": "Tutorial 3 Java RMI",
+  "name": "Projeto SD",
   "features": {
     "ghcr.io/devcontainers/features/java:1": {
       "version": "21",

@@ -13,7 +13,7 @@ public class downloader{
 public String url;
 public int paralel_threshold = 10;
 
-public Document download_page(){
+public Document download_page() throws IOException{
     return Jsoup.connect(url).get();
 }
 
@@ -26,7 +26,7 @@ public List<String> getUrls(Document doc){
     Elements links = doc.select("a[href]");
     for(Element link: links){
         String url = link.absUrl("href");
-        urls.add(Url);
+        urls.add(url);
     }
     return urls;      
 }

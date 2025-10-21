@@ -1,3 +1,4 @@
+import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -206,6 +207,11 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
             // criar e bind da gateway
             GatewayImpl gw = new GatewayImpl();
+
+            // criar a pool
+            url_queue queue = new url_queue();
+            LocateRegistry.createRegistry(1099);
+            Naming.rebind("queue", queue);
 
             // ligar aos barrels indicados nos argumentos restantes
             for (int i = 3; i < args.length; i++) {

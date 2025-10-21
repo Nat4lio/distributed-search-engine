@@ -2,75 +2,88 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+
+
 
 
 
 public class downloader{
 
-static String url;
-static ConcurrentLinkedQueue<String> urls = new ConcurrentLinkedQueue<String>();
-static HashMap<String,List<String>> index = new HashMap<>();
+
 static int parallel_threshold = 10;
 
-public Document download_page() throws IOException{
+public static Document download_page(String url) throws IOException{
     return Jsoup.connect(url).get();
 }
 
-public String getText(Document doc){
+public static String getText(Document doc){
     return doc.text();
 }
 
-public void addUrls(Document doc){
+public static void addUrls(url_queue urls,Document doc) throws RemoteException{
     Elements links = doc.select("a[href]");
     for(Element link: links){
         String url = link.absUrl("href");
-        urls.add(url);
+        urls.addUrl(url);
     }     
 }
 
-public void putHashMap(String text,String url){
+public static void putHashMap(ConcurrentHashMap<String,HashSet<String>> index,String text,String url){
     String[] words = text.split("\\W+");
     for (String w :words){
+        if(!w.isEmpty())
         if(!index.get(w).contains(url)){
-            index.keySet().add(url);
+            index.putIfAbsent(w, new HashSet<>());
+            index.get(w).add(url);
         }
     }
 }
 
-public static void parallelIndexing(){
-    try(ForkJoinPool pool = new ForkJoinPool(parallel_threshold)){
-        pool.invoke(new Indexing(urls));
+public static void parallelIndexing(ConcurrentHashMap<String,HashSet<String>> index,url_queue urls){
+    try (ForkJoinPool pool = new ForkJoinPool(parallel_threshold)) {
+        pool.invoke(new Robots(urls,index));
     }
 }
 
-public static class Indexing extends RecursiveAction{
-    ConcurrentLinkedQueue<String> urls;
-    public Indexing(ConcurrentLinkedQueue<String> urls){
+public static class Robots extends RecursiveAction{
+    url_queue urls;
+    ConcurrentHashMap<String,HashSet<String>> index;
+    public Robots(url_queue urls,ConcurrentHashMap<String,HashSet<String>> index){
         this.urls = urls;
+        this.index = index;
     }
     public void compute(){
-        while(!urls.isEmpty()){
-        String url = urls.poll();
-        downloader robot = new downloader();
-        try{
-        Document doc = robot.download_page();
-        String texto = robot.getText(doc);
-        robot.addUrls(doc);
-        robot.putHashMap(texto,url);
-        }
-        catch(IOException e){}
+        try {
+            while(!urls.isEmpty()){
+            String url = urls.getNextUrl();
+            try{
+            Document doc = download_page(url);
+            String texto = getText(doc);
+            addUrls(urls,doc);
+            putHashMap(index,texto,url);
+            }
+            catch(IOException e){}
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
         }
     }
 }
 
-public static void main(String[] args){
-    
+public static void main(String[] args) throws InterruptedException, RemoteException, MalformedURLException, NotBoundException{;
+    ConcurrentHashMap<String,HashSet<String>> index = new ConcurrentHashMap<>();
+    url_queue queue = (url_queue) Naming.lookup("queue");
+    String first = "https://pt.wikipedia.org/wiki/Wikip%C3%A9dia:P%C3%A1gina_principal";
+    queue.addUrl(first);
+    parallelIndexing(index, queue);
 }
-
 }

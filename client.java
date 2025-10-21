@@ -6,7 +6,7 @@ import java.util.*;
  * Cliente de exemplo para testar a Gateway.
  * Usage: java Client <gateway_name> <registry_host> <registry_port>
  */
-public class Client {
+public class client {
 
     public static void main(String[] args) {
         try {

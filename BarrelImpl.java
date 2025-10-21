@@ -4,6 +4,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Implementação simples do Barrel. Mantém:
@@ -22,6 +23,7 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
     private final ConcurrentHashMap<String, Set<String>> invertedIndex;
     private final ConcurrentHashMap<String, PageInfo> pages;
     private final ConcurrentHashMap<String, Set<String>> inboundLinks;
+    static ConcurrentLinkedQueue<String> urls;
 
     // flag para simular falha no barrel (usada nos testes)
     private volatile boolean alive = true;
@@ -31,6 +33,7 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         invertedIndex = new ConcurrentHashMap<>();
         pages = new ConcurrentHashMap<>();
         inboundLinks = new ConcurrentHashMap<>();
+        urls = new ConcurrentLinkedQueue<>();
     }
 
     private void checkAlive() throws RemoteException {

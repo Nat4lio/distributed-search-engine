@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
 public interface BarrelInterface extends Remote {
     public void putIndex(Map<String, Set<String>> partialIndex, Map<String, PageInfo> pages) throws RemoteException;
     public Set<String> searchUrls(List<String> terms) throws RemoteException;

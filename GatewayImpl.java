@@ -210,7 +210,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
             // criar a pool
             url_queue queue = new url_queue();
-            LocateRegistry.createRegistry(1099);
+            LocateRegistry.createRegistry(1100);
             Naming.rebind("queue", queue);
 
             // ligar aos barrels indicados nos argumentos restantes

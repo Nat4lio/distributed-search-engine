@@ -1,4 +1,5 @@
-import java.rmi.Naming;
+
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -198,39 +199,36 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     // Uso: java GatewayImpl <rmi_name> <registry_host> <registry_port> <barrel_name_1> <barrel_name_2> ...
     public static void main(String[] args) {
         try {
-            String name = (args.length >= 1) ? args[0] : "Gateway";
-            String host = (args.length >= 2) ? args[1] : "localhost";
-            int port = (args.length >= 3) ? Integer.parseInt(args[2]) : 1099;
+            String name = "Gateway";
+            String host = "localhost";
+            int port = 1099;
 
             // obter registry
-            Registry registry = LocateRegistry.getRegistry(host, port);
+            try{
+            LocateRegistry.createRegistry(port);
+            }catch(Exception e){}
+
+            Registry registry = LocateRegistry.getRegistry(host,port);
 
             // criar e bind da gateway
             GatewayImpl gw = new GatewayImpl();
 
-            // criar a pool
-            url_queue queue = new url_queue();
-            LocateRegistry.createRegistry(1100);
-            Naming.rebind("queue", queue);
-
-            // ligar aos barrels indicados nos argumentos restantes
-            for (int i = 3; i < args.length; i++) {
-                String barrelName = args[i];
+            BarrelInterface b = null;
+            while (b == null) {
                 try {
-                    BarrelInterface b = (BarrelInterface) registry.lookup(barrelName);
-                    gw.registerBarrel(b, barrelName);
-                    System.out.println("Gateway: registered barrel " + barrelName);
-                } catch (Exception e) {
-                    System.err.println("Gateway: could not register barrel " + barrelName + ": " + e.getMessage());
+                    Registry barrelRegistry = LocateRegistry.getRegistry(host, 1099);
+                    b = (BarrelInterface) barrelRegistry.lookup("Barrel");
+                    System.out.println("Gateway: registered barrel");
+                } catch (NotBoundException e) {
+                    System.out.println("Barrel ainda não registrado. Esperando...");
+                    Thread.sleep(1000); 
                 }
             }
+            gw.registerBarrel(b, "Barrel");
 
             // bind gateway
             registry.rebind(name, gw);
             System.out.println("Gateway bound as '" + name + "' on " + host + ":" + port);
-        } catch (Exception e) {
-            System.err.println("Gateway exception: " + e);
-            e.printStackTrace();
-        }
+        } catch (Exception e) {}
     }
 }

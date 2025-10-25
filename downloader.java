@@ -89,11 +89,21 @@ public static class Robots extends RecursiveAction{
 
 public static void main(String[] args) throws InterruptedException, RemoteException, MalformedURLException, NotBoundException{;
     ConcurrentHashMap<String,Set<String>> index = new ConcurrentHashMap<>();
-    Registry registry = LocateRegistry.getRegistry("localhost", 1099);
-    url_queue queue = (url_queue) registry.lookup("queue");
-    BarrelInterface barrel = (BarrelInterface) registry.lookup("Barrel");
-    String first = "https://pt.wikipedia.org/wiki/Wikip%C3%A9dia:P%C3%A1gina_principal";
-    queue.addUrl(first);
+    int queuePort = 1200;
+    try {
+        LocateRegistry.createRegistry(queuePort);
+        System.out.println("RMI registry criado na porta " + queuePort);
+    } catch (Exception e) {
+        System.out.println("Registry já existe na porta " + queuePort);
+    }
+
+    Registry barrelRegistry = LocateRegistry.getRegistry("localhost", 1099);
+    BarrelInterface barrel = (BarrelInterface) barrelRegistry.lookup("Barrel");
+
+    Registry queueR = LocateRegistry.getRegistry("localhost",1099);
+    url_queue queue = (url_queue) queueR.lookup("queue");
+    
+
     parallelIndexing(index, queue, barrel);
 }
 }

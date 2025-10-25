@@ -133,6 +133,11 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
             BarrelImpl obj = new BarrelImpl();
             Registry registry = LocateRegistry.getRegistry(host, port);
             registry.rebind(name, obj);
+            String[] barrelsToConnect = {"Barrel1", "Barrel2", "Barrel3"};
+
+            for (String bName : barrelsToConnect) {
+                registry.rebind(bName,obj);
+            }
             System.out.println("Barrel bound as '" + name + "' on " + host + ":" + port);
         } catch (Exception e) {
             System.err.println("Barrel exception: " + e.toString());

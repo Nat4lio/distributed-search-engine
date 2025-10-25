@@ -5,8 +5,10 @@ import org.jsoup.select.Elements;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.io.IOException;
@@ -45,10 +47,10 @@ public static void putHashMap(ConcurrentHashMap<String,Set<String>> index,String
     }
 }
 
-public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,url_queue urls,BarrelInterface barrel){
+public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,url_queue urls,BarrelInterface barrel,List<String> processados){
     try (ForkJoinPool pool = new ForkJoinPool(parallel_threshold)) {
         for(int i = 0;i<parallel_threshold;i++){
-        pool.execute(new Robots(urls,index,barrel));
+        pool.execute(new Robots(urls,index,barrel,processados));
         }
         pool.shutdown();
     }
@@ -58,16 +60,19 @@ public static class Robots extends RecursiveAction{
     url_queue urls;
     ConcurrentHashMap<String,Set<String>> index;
     BarrelInterface barrel;
-    public Robots(url_queue urls,ConcurrentHashMap<String,Set<String>> index,BarrelInterface barrel){
+    List<String> processados;
+    public Robots(url_queue urls,ConcurrentHashMap<String,Set<String>> index,BarrelInterface barrel,List<String> processados){
         this.urls = urls;
         this.index = index;
         this.barrel = barrel;
+        this.processados = processados;
     }
     public void compute(){
         try {
             while(!urls.isEmpty()){
             String url = urls.getNextUrl();
             try{
+            if(!processados.contains(url)){
             Document doc = download_page(url);
             String texto = getText(doc);
             addUrls(urls,doc);
@@ -79,8 +84,12 @@ public static class Robots extends RecursiveAction{
             pageInfoBatch.put(url,page);
             barrel.putIndex(index,pageInfoBatch);
             }
-            catch(IOException e){}
+            else{
+                processados.add(url);
             }
+        }
+            catch(IOException e){}
+        }
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -89,6 +98,7 @@ public static class Robots extends RecursiveAction{
 
 public static void main(String[] args) throws InterruptedException, RemoteException, MalformedURLException, NotBoundException{;
     ConcurrentHashMap<String,Set<String>> index = new ConcurrentHashMap<>();
+    List<String> urls_processados = new ArrayList<>();
     int queuePort = 1200;
     try {
         LocateRegistry.createRegistry(queuePort);
@@ -104,6 +114,7 @@ public static void main(String[] args) throws InterruptedException, RemoteExcept
     url_queue queue = (url_queue) queueR.lookup("queue");
     
 
-    parallelIndexing(index, queue, barrel);
+    parallelIndexing(index, queue, barrel,urls_processados);
+
 }
 }

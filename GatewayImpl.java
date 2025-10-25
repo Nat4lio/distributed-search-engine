@@ -195,6 +195,23 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         return m;
     }
 
+    public void connectBarrels() throws RemoteException, InterruptedException {
+        for (String name : barrelNames) {   
+            BarrelInterface b = null;
+            while (b == null) {
+                try {
+                    Registry registry = LocateRegistry.getRegistry("localhost", 1099);
+                    b = (BarrelInterface) registry.lookup(name);
+                    barrels.add(b);
+                    System.out.println("Registered barrel: " + name);
+                } catch (NotBoundException e) {
+                    System.out.println("Barrel " + name + " ainda não registrado, tentando novamente...");
+                    Thread.sleep(1000);
+                }
+            }
+        }
+    }
+
     // Main para arrancar Gateway.
     // Uso: java GatewayImpl <rmi_name> <registry_host> <registry_port> <barrel_name_1> <barrel_name_2> ...
     public static void main(String[] args) {
@@ -210,25 +227,18 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
             Registry registry = LocateRegistry.getRegistry(host,port);
 
-            // criar e bind da gateway
+            
             GatewayImpl gw = new GatewayImpl();
-
-            BarrelInterface b = null;
-            while (b == null) {
-                try {
-                    Registry barrelRegistry = LocateRegistry.getRegistry(host, 1099);
-                    b = (BarrelInterface) barrelRegistry.lookup("Barrel");
-                    System.out.println("Gateway: registered barrel");
-                } catch (NotBoundException e) {
-                    System.out.println("Barrel ainda não registrado. Esperando...");
-                    Thread.sleep(1000); 
-                }
-            }
-            gw.registerBarrel(b, "Barrel");
-
-            // bind gateway
             registry.rebind(name, gw);
+
+            String[] barrelsToConnect = {"Barrel1", "Barrel2", "Barrel3"};
+
+            for (String bName : barrelsToConnect) {
+                gw.barrelNames.add(bName);
+            }
+            gw.connectBarrels();
             System.out.println("Gateway bound as '" + name + "' on " + host + ":" + port);
+
         } catch (Exception e) {}
     }
 }

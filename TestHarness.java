@@ -1,6 +1,9 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+
 
 /**
  * ============================================================
@@ -66,15 +69,16 @@ public class TestHarness {
         System.out.println("\n[Test1] Basic index & search");
         try {
             String url = "http://a.example/page1";
+            Document doc = Jsoup.parse("<html><body><a href='http://a.example/page2'>link</a></body></html>");
             PageInfo p = new PageInfo(url, "Alpha Page", "This is alpha content");
-            p.addOutLink("http://a.example/page2");
+            p.addOutLink(doc); // adiciona o link de forma realista
             Map<String, Set<String>> map = new HashMap<>();
             tokenize("alpha page content", url, map);
             boolean ok = gw.indexPage(p, map);
             List<SearchResult> res = gw.search(Arrays.asList("alpha"), 1, 10);
             boolean found = res.stream().anyMatch(r -> r.url.equals(url));
             return ok && found;
-        } catch (Exception e) { return false; }
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private static boolean runTest2_inboundLinks(GatewayInterface gw) {
@@ -82,8 +86,9 @@ public class TestHarness {
         try {
             String src = "http://b.example/src";
             String target = "http://b.example/tgt";
+            Document docSrc = Jsoup.parse("<html><body><a href='" + target + "'>link</a></body></html>");
             PageInfo psrc = new PageInfo(src, "Source", "links to tgt");
-            psrc.addOutLink(target);
+            psrc.addOutLink(docSrc);
             Map<String, Set<String>> map1 = new HashMap<>();
             tokenize("links to tgt", src, map1);
             gw.indexPage(psrc, map1);
@@ -95,7 +100,7 @@ public class TestHarness {
 
             Set<String> in = gw.inboundLinks(target);
             return in.contains(src);
-        } catch (Exception e) { return false; }
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private static boolean runTest3_relevanceOrdering(GatewayInterface gw) {
@@ -103,21 +108,27 @@ public class TestHarness {
         try {
             String u1 = "http://c.example/u1";
             String u2 = "http://c.example/u2";
+
             PageInfo p1 = new PageInfo(u1, "CommonWord Page1", "commonword here");
             PageInfo p2 = new PageInfo(u2, "CommonWord Page2", "commonword here");
+
+            Document d1 = Jsoup.parse("<html><body><a href='" + u1 + "'>link</a></body></html>");
+            Document d2 = Jsoup.parse("<html><body><a href='" + u1 + "'>link</a></body></html>");
             PageInfo linker1 = new PageInfo("http://c.example/linker1", "L1", "links to u1");
             PageInfo linker2 = new PageInfo("http://c.example/linker2", "L2", "links to u1");
-            linker1.addOutLink(u1);
-            linker2.addOutLink(u1);
+            linker1.addOutLink(d1);
+            linker2.addOutLink(d2);
+
             Map<String, Set<String>> m;
             m = new HashMap<>(); tokenize("commonword", u1, m); gw.indexPage(p1, m);
             m = new HashMap<>(); tokenize("commonword", u2, m); gw.indexPage(p2, m);
             m = new HashMap<>(); tokenize("links to u1", linker1.url, m); gw.indexPage(linker1, m);
             m = new HashMap<>(); tokenize("links to u1", linker2.url, m); gw.indexPage(linker2, m);
+
             List<SearchResult> res = gw.search(Arrays.asList("commonword"), 1, 10);
             int i1 = indexOf(res, u1), i2 = indexOf(res, u2);
             return i1 != -1 && i2 != -1 && i1 < i2;
-        } catch (Exception e) { return false; }
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private static boolean runTest4_failoverAfterBarrelShutdown(GatewayInterface gw, BarrelImpl barrel) {
@@ -131,7 +142,7 @@ public class TestHarness {
             barrel.shutdown();
             List<SearchResult> res = gw.search(Arrays.asList("replicated"), 1, 10);
             return res.stream().anyMatch(r -> r.url.equals(url));
-        } catch (Exception e) { return false; }
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private static boolean runTest5_cacheBehavior(GatewayInterface gw) {
@@ -147,7 +158,7 @@ public class TestHarness {
             gw.indexPage(new PageInfo(uNew, "New", term), m2);
             gw.search(Arrays.asList(term), 1, 10);
             return true;
-        } catch (Exception e) { return false; }
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private static void tokenize(String text, String url, Map<String, Set<String>> map) {

@@ -81,6 +81,7 @@ public static class Robots extends RecursiveAction{
             String titulo = doc.title();
             String snippet = texto.length() > 100 ? texto.substring(0,100) : texto;
             PageInfo page = new PageInfo(url, titulo, snippet);
+            page.addOutLink(doc);
             Map<String,PageInfo> pageInfoBatch = new HashMap<>();
             pageInfoBatch.put(url,page);
             for(BarrelInterface b: barrels){

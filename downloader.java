@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,10 +48,10 @@ public static void putHashMap(ConcurrentHashMap<String,Set<String>> index,String
     }
 }
 
-public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,url_queue urls,BarrelInterface barrel,List<String> processados){
+public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,url_queue urls,List<BarrelInterface> barrels,List<String> processados){
     try (ForkJoinPool pool = new ForkJoinPool(parallel_threshold)) {
         for(int i = 0;i<parallel_threshold;i++){
-        pool.execute(new Robots(urls,index,barrel,processados));
+        pool.execute(new Robots(urls,index,barrels,processados));
         }
         pool.shutdown();
     }
@@ -59,12 +60,12 @@ public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,
 public static class Robots extends RecursiveAction{
     url_queue urls;
     ConcurrentHashMap<String,Set<String>> index;
-    BarrelInterface barrel;
+    List<BarrelInterface> barrels;
     List<String> processados;
-    public Robots(url_queue urls,ConcurrentHashMap<String,Set<String>> index,BarrelInterface barrel,List<String> processados){
+    public Robots(url_queue urls,ConcurrentHashMap<String,Set<String>> index,List<BarrelInterface> barrels,List<String> processados){
         this.urls = urls;
         this.index = index;
-        this.barrel = barrel;
+        this.barrels = barrels;
         this.processados = processados;
     }
     public void compute(){
@@ -82,7 +83,12 @@ public static class Robots extends RecursiveAction{
             PageInfo page = new PageInfo(url, titulo, snippet);
             Map<String,PageInfo> pageInfoBatch = new HashMap<>();
             pageInfoBatch.put(url,page);
-            barrel.putIndex(index,pageInfoBatch);
+            for(BarrelInterface b: barrels){
+                try{
+            b.putIndex(index,pageInfoBatch);
+                }
+                catch(RemoteException e){}
+            }
             }
             else{
                 processados.add(url);
@@ -108,13 +114,16 @@ public static void main(String[] args) throws InterruptedException, RemoteExcept
     }
 
     Registry barrelRegistry = LocateRegistry.getRegistry("localhost", 1099);
-    BarrelInterface barrel = (BarrelInterface) barrelRegistry.lookup("Barrel");
+    BarrelInterface Barrel1 = (BarrelInterface) barrelRegistry.lookup("Barrel1");
+    BarrelInterface Barrel2 = (BarrelInterface) barrelRegistry.lookup("Barrel2");
+    BarrelInterface Barrel3 = (BarrelInterface) barrelRegistry.lookup("Barrel3");
+    List<BarrelInterface> Barrels = Arrays.asList(Barrel1,Barrel2,Barrel3);
 
     Registry queueR = LocateRegistry.getRegistry("localhost",1099);
     url_queue queue = (url_queue) queueR.lookup("queue");
     
 
-    parallelIndexing(index, queue, barrel,urls_processados);
+    parallelIndexing(index, queue,Barrels,urls_processados);
 
 }
 }

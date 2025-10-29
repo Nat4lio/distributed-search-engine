@@ -22,7 +22,7 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
 
     private final ConcurrentHashMap<String, Set<String>> invertedIndex;
     private final ConcurrentHashMap<String, PageInfo> pages;
-    private final ConcurrentHashMap<String, Set<String>> inboundLinks;
+    public final ConcurrentHashMap<String, Set<String>> inboundLinks;
     static ConcurrentLinkedQueue<String> urls;
 
     // flag para simular falha no barrel (usada nos testes)

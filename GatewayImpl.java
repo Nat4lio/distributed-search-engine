@@ -63,8 +63,11 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
         // check cache
         List<SearchResult> cached = cache.get(key);
+        Set<String> rcached = new HashSet<String>();
         if (cached != null) {
-            return paginate(cached, pageNumber, pageSize);
+            for(SearchResult c: cached){
+                rcached.add(c.url);
+            }
         }
 
         // tenta usar um Barrel; em caso de falha tenta os outros (failover)
@@ -75,6 +78,8 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
             try {
                 b = chooseBarrel();
                 Set<String> resultSet = b.searchUrls(terms);
+                Set<String> combinados = new HashSet<>(rcached);
+                combinados.addAll(resultSet);
                 urls = new ArrayList<>(resultSet);
                 break;
             } catch (RemoteException re) {

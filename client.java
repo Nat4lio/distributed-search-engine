@@ -28,8 +28,11 @@ public class client {
                 if (line.startsWith("search ")) {
                     String[] parts = line.substring(7).split("\\s+");
                     List<String> terms = Arrays.asList(parts);
-                    List<SearchResult> results = gw.search(terms, 1, 10);
-                    System.out.println("Results (page 1):");
+                    System.out.println("Pagina?");
+                    line = sc.nextLine();
+                    int npag = Integer.parseInt(line);
+                    List<SearchResult> results = gw.search(terms, npag, 10);
+                    System.out.println("Results (page "+npag+"):");
                     for (SearchResult r : results) {
                         System.out.println(r);
                     }

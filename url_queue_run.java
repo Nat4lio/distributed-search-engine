@@ -32,6 +32,7 @@ public class url_queue_run extends UnicastRemoteObject implements url_queue {
 
         Registry registry = LocateRegistry.getRegistry("localhost",1099);
         registry.rebind("queue",queue);
+        System.out.println("queue registada");
 
         String first = "https://pt.wikipedia.org/wiki/Wikip%C3%A9dia:P%C3%A1gina_principal";
         queue.addUrl(first);

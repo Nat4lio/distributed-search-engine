@@ -45,12 +45,15 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         checkAlive();
         if (partialIndex != null) {
             for (Map.Entry<String, Set<String>> e : partialIndex.entrySet()) {
-                String word = e.getKey();
+                String url = e.getKey();
+                Set<String> words = e.getValue();
+                for(String word: words){
                 invertedIndex.compute(word, (k, old) -> {
                     if (old == null) old = Collections.newSetFromMap(new ConcurrentHashMap<>());
-                    old.addAll(e.getValue());
+                    old.add(url);
                     return old;
                 });
+            }
             }
         }
         if (pagesBatch != null) {
@@ -123,22 +126,19 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
     // main original (sem alterações funcionais)
     public static void main(String[] args) {
         try {
-            String name = "Barrel";
             String host = "localhost";
             int port = 1099;
-            try {
             LocateRegistry.createRegistry(port);
-            } catch (Exception e) {
-            }
-            BarrelImpl obj = new BarrelImpl();
             Registry registry = LocateRegistry.getRegistry(host, port);
-            registry.rebind(name, obj);
-            String[] barrelsToConnect = {"Barrel1", "Barrel2", "Barrel3"};
-
-            for (String bName : barrelsToConnect) {
-                registry.rebind(bName,obj);
-            }
-            System.out.println("Barrel bound as '" + name + "' on " + host + ":" + port);
+            BarrelImpl barrel1 = new BarrelImpl();
+            BarrelImpl barrel2 = new BarrelImpl();
+            BarrelImpl barrel3 = new BarrelImpl();
+            registry.rebind("barrel1", barrel1);
+            System.out.println("Barrel bound as barrel1 on " + host + ":" + port);
+            registry.rebind("barrel2", barrel2);
+            System.out.println("Barrel bound as barrel2 on " + host + ":" + port);
+            registry.rebind("barrel3", barrel3);
+            System.out.println("Barrel bound as barrel3 on " + host + ":" + port);
         } catch (Exception e) {
             System.err.println("Barrel exception: " + e.toString());
             e.printStackTrace();

@@ -236,7 +236,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
             GatewayImpl gw = new GatewayImpl();
             registry.rebind(name, gw);
 
-            String[] barrelsToConnect = {"Barrel1", "Barrel2", "Barrel3"};
+            String[] barrelsToConnect = {"barrel1", "barrel2", "barrel3"};
 
             for (String bName : barrelsToConnect) {
                 gw.barrelNames.add(bName);

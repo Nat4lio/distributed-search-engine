@@ -2,10 +2,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveAction;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,71 +39,62 @@ public static void addUrls(url_queue urls,Document doc) throws RemoteException{
     }     
 }
 
-public static void putHashMap(ConcurrentHashMap<String,Set<String>> index,String text,String url){
+public static HashMap<String,Set<String>> buildHashMap(String text,String url){
+    HashMap<String,Set<String>> hm = new HashMap<>();
     String[] words = text.split("\\W+");
     for (String w :words){
-        index.computeIfAbsent(w, k -> new HashSet<>()).add(url);
+        hm.computeIfAbsent(url, k -> new HashSet<>()).add(w);
     }
+    return hm;
 }
 
-public static void parallelIndexing(ConcurrentHashMap<String,Set<String>> index,url_queue urls,List<BarrelInterface> barrels,List<String> processados){
+public static void parallelIndexing(url_queue urls,List<BarrelInterface> barrels,ConcurrentLinkedDeque<String> processados){
     try (ForkJoinPool pool = new ForkJoinPool(parallel_threshold)) {
         for(int i = 0;i<parallel_threshold;i++){
-        pool.execute(new Robots(urls,index,barrels,processados));
+        pool.execute(() -> { 
+            try {
+                while (true) {
+                    String url = urls.getNextUrl();
+                    if (url!=null && !processados.contains(url)) {
+                        System.out.println("Thread " + Thread.currentThread().getName() + " processando URL");
+
+                        Document doc = download_page(url);
+                        String texto = getText(doc);
+                        addUrls(urls, doc);
+                        HashMap<String,Set<String>> hm = buildHashMap(texto, url);
+
+                        String titulo = doc.title();
+                        String snippet = texto.length() > 100 ? texto.substring(0, 100) : texto;
+                        PageInfo page = new PageInfo(url, titulo, snippet);
+                        page.addOutLink(doc);
+
+                        Map<String, PageInfo> pageInfoBatch = new HashMap<>();
+                        pageInfoBatch.put(url, page);
+
+                        for (BarrelInterface b : barrels) {
+                            try {
+                                b.putIndex(hm, pageInfoBatch);
+                            } catch (RemoteException e) {}
+                        }
+
+                        processados.add(url);
+                    }
+                    Thread.sleep(500);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
         }
         pool.shutdown();
     }
 }
 
-public static class Robots extends RecursiveAction{
-    url_queue urls;
-    ConcurrentHashMap<String,Set<String>> index;
-    List<BarrelInterface> barrels;
-    List<String> processados;
-    public Robots(url_queue urls,ConcurrentHashMap<String,Set<String>> index,List<BarrelInterface> barrels,List<String> processados){
-        this.urls = urls;
-        this.index = index;
-        this.barrels = barrels;
-        this.processados = processados;
-    }
-    public void compute(){
-        try {
-            while(!urls.isEmpty()){
-            String url = urls.getNextUrl();
-            try{
-            if(!processados.contains(url)){
-            Document doc = download_page(url);
-            String texto = getText(doc);
-            addUrls(urls,doc);
-            putHashMap(index,texto,url);
-            String titulo = doc.title();
-            String snippet = texto.length() > 100 ? texto.substring(0,100) : texto;
-            PageInfo page = new PageInfo(url, titulo, snippet);
-            page.addOutLink(doc);
-            Map<String,PageInfo> pageInfoBatch = new HashMap<>();
-            pageInfoBatch.put(url,page);
-            for(BarrelInterface b: barrels){
-                try{
-            b.putIndex(index,pageInfoBatch);
-                }
-                catch(RemoteException e){}
-            }
-            }
-            else{
-                processados.add(url);
-            }
-        }
-            catch(IOException e){}
-        }
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-}
 
 public static void main(String[] args) throws InterruptedException, RemoteException, MalformedURLException, NotBoundException{;
-    ConcurrentHashMap<String,Set<String>> index = new ConcurrentHashMap<>();
-    List<String> urls_processados = new ArrayList<>();
+    ConcurrentLinkedDeque<String> urls_processados = new ConcurrentLinkedDeque<>();
     int queuePort = 1200;
     try {
         LocateRegistry.createRegistry(queuePort);
@@ -115,16 +104,20 @@ public static void main(String[] args) throws InterruptedException, RemoteExcept
     }
 
     Registry barrelRegistry = LocateRegistry.getRegistry("localhost", 1099);
-    BarrelInterface Barrel1 = (BarrelInterface) barrelRegistry.lookup("Barrel1");
-    BarrelInterface Barrel2 = (BarrelInterface) barrelRegistry.lookup("Barrel2");
-    BarrelInterface Barrel3 = (BarrelInterface) barrelRegistry.lookup("Barrel3");
+    BarrelInterface Barrel1 = (BarrelInterface) barrelRegistry.lookup("barrel1");
+    System.out.println("barrel1 registado");
+    BarrelInterface Barrel2 = (BarrelInterface) barrelRegistry.lookup("barrel2");
+    System.out.println("barrel2 registado");
+    BarrelInterface Barrel3 = (BarrelInterface) barrelRegistry.lookup("barrel3");
+    System.out.println("barrel3 registado");
     List<BarrelInterface> Barrels = Arrays.asList(Barrel1,Barrel2,Barrel3);
 
     Registry queueR = LocateRegistry.getRegistry("localhost",1099);
     url_queue queue = (url_queue) queueR.lookup("queue");
+    System.out.println("queue registada");
     
 
-    parallelIndexing(index, queue,Barrels,urls_processados);
+    parallelIndexing(queue,Barrels,urls_processados);
 
 }
 }

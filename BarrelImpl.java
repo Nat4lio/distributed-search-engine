@@ -178,28 +178,36 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         System.setProperty("java.rmi.server.hostname", "localhost");
         Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
 
+        // obtém stub do gateway
         GatewayInterface gw = (GatewayInterface) registry.lookup("Gateway");
 
-        // cria o barrel com nome temporário
+        // cria o barrel temporário
         BarrelImpl localStub = new BarrelImpl("temp");
 
-        String assignedName
+        // regista temporariamente no registry (necessário para o gateway conseguir chamá-lo)
+        registry.rebind("temp", localStub);
 
-        // registra primeiro o stub no Registry
-        registry.rebind(assignedName, localStub);
+        // gateway devolve nome único (ex: Barrel1, Barrel2)
+        String assignedName = gw.registerNewBarrel(localStub);
+
+        // agora atualiza o nome e faz o rebind com o nome definitivo
         localStub.name = assignedName;
+        registry.rebind(assignedName, localStub);
 
-        System.out.println("[Barrel] registado no RMI como: " + assignedName);
+        // remove o temporário (opcional)
+        try { registry.unbind("temp"); } catch (Exception ignored) {}
 
-        // agora sim, comunica ao Gateway para sincronizar
-        gw.registerNewBarrel(localStub);
+        System.out.println("[Barrel] registado como: " + assignedName);
 
+        // prints informativos
         System.out.println("Tamanho do invertedIndex: " + localStub.invertedIndex.size());
         System.out.println("Tamanho do pages: " + localStub.pages.size());
         System.out.println("Tamanho do inboundLinks: " + localStub.inboundLinks.size());
 
     } catch (Exception e) {
+        System.err.println("[Barrel] Erro ao iniciar: " + e.getMessage());
         e.printStackTrace();
     }
 }
+
 }

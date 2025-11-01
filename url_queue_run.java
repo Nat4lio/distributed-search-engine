@@ -26,11 +26,13 @@ public class url_queue_run extends UnicastRemoteObject implements url_queue {
     }
     public static void main(String[] args) throws RemoteException{
         url_queue_run queue = new url_queue_run();
+        Registry registry;
         try{
-        LocateRegistry.createRegistry(1099);
-        }catch(Exception e){}
+        registry = LocateRegistry.createRegistry(1099);
+        }catch(Exception e){
+            registry = LocateRegistry.getRegistry("localhost", 1099);
+        }
 
-        Registry registry = LocateRegistry.getRegistry("localhost",1099);
         registry.rebind("queue",queue);
         System.out.println("queue registada");
 

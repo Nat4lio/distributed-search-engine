@@ -1,5 +1,3 @@
-
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -32,6 +30,8 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     // cache size
     private final int CACHE_SIZE = 100;
 
+    private final AtomicInteger barrelCounter = new AtomicInteger(1);
+
     protected GatewayImpl() throws RemoteException {
         super();
         // LRU cache usando LinkedHashMap
@@ -42,11 +42,6 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         });
     }
 
-    // Registrar um Barrel dinamicamente (poderá ser chamado para discovery)
-    public void registerBarrel(BarrelInterface b, String name) {
-        barrels.add(b);
-        barrelNames.add(name);
-    }
 
     // Helper: escolher barrel por rr. Se vazio, lança RemoteException
     private BarrelInterface chooseBarrel() throws RemoteException {
@@ -200,50 +195,50 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         return m;
     }
 
-    public void connectBarrels() throws RemoteException, InterruptedException {
-        for (String name : barrelNames) {   
-            BarrelInterface b = null;
-            while (b == null) {
-                try {
-                    Registry registry = LocateRegistry.getRegistry("localhost", 1099);
-                    b = (BarrelInterface) registry.lookup(name);
-                    barrels.add(b);
-                    System.out.println("Registered barrel: " + name);
-                } catch (NotBoundException e) {
-                    System.out.println("Barrel " + name + " ainda não registrado, tentando novamente...");
-                    Thread.sleep(1000);
-                }
-            }
+    @Override
+    public synchronized String registerNewBarrel(BarrelInterface stub) throws RemoteException {
+    String name = "Barrel" + barrelCounter.getAndIncrement();
+    System.out.println("[Gateway] Novo barrel registado: " + name);
+
+    if (!barrels.isEmpty()) {
+        BarrelInterface existing = barrels.get(0);
+        try {
+            Map<String, Object> fullIndex = existing.getFullIndex();
+
+            @SuppressWarnings("unchecked")
+            Map<String, Set<String>> inv = (Map<String, Set<String>>) fullIndex.get("invertedIndex");
+
+            @SuppressWarnings("unchecked")
+            Map<String, PageInfo> pgs = (Map<String, PageInfo>) fullIndex.get("pages");
+
+            @SuppressWarnings("unchecked")
+            Map<String, Set<String>> inb = (Map<String, Set<String>>) fullIndex.get("inboundLinks");
+
+            stub.syncFullIndex(inv, pgs, inb);
+
+            System.out.println("[Gateway] Synced " + name + " with "
+                    + barrelNames.get(0) + " (" + inv.size() + " words)");
+        } catch (Exception e) {;
         }
     }
 
-    // Main para arrancar Gateway.
-    // Uso: java GatewayImpl <rmi_name> <registry_host> <registry_port> <barrel_name_1> <barrel_name_2> ...
+    barrels.add(stub);
+    barrelNames.add(name);
+    return name;
+}
+
+
     public static void main(String[] args) {
-        try {
             String name = "Gateway";
-            String host = "localhost";
-            int port = 1099;
+            String registryHost = "localhost";
+            int registryPort = 1099;
 
-            // obter registry
             try{
-            LocateRegistry.createRegistry(port);
-            }catch(Exception e){}
-
-            Registry registry = LocateRegistry.getRegistry(host,port);
-
-            
+            System.setProperty("java.rmi.server.hostname", "localhost");
+            Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
             GatewayImpl gw = new GatewayImpl();
             registry.rebind(name, gw);
-
-            String[] barrelsToConnect = {"barrel1", "barrel2", "barrel3"};
-
-            for (String bName : barrelsToConnect) {
-                gw.barrelNames.add(bName);
-            }
-            gw.connectBarrels();
-            System.out.println("Gateway bound as '" + name + "' on " + host + ":" + port);
-
+            System.out.println("[Gateway] bound as '" + name + "' on " + registryHost + ":" + registryPort);
         } catch (Exception e) {}
-    }
 }
+    }

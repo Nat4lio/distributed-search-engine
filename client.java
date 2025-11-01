@@ -18,79 +18,86 @@ public class client {
             GatewayInterface gw = (GatewayInterface) registry.lookup(gatewayName);
 
             Scanner sc = new Scanner(System.in);
-            System.out.println("Connected to Gateway. Type commands: search <terms...> | index <url> <title> <snippet> | inbound <url> | stats | exit");
-            while (true) {
-                System.out.print("> ");
-                String line = sc.nextLine();
-                if (line == null) break;
-                line = line.trim();
-                if (line.equalsIgnoreCase("exit")) break;
-                if (line.startsWith("search ")) {
-                    String[] parts = line.substring(7).split("\\s+");
-                    List<String> terms = Arrays.asList(parts);
-                    System.out.println("Pagina?");
-                    line = sc.nextLine();
-                    int npag = Integer.parseInt(line);
-                    List<SearchResult> results = gw.search(terms, npag, 10);
-                    System.out.println("Results (page "+npag+"):");
-                    for (SearchResult r : results) {
-                        System.out.println(r);
-                    }
-                } else if (line.startsWith("index ")) {
-                    // minimal example: index <url> <title> <snippet>
-                    String[] parts = splitArgs(line.substring(6), 3);
-                    String url = parts[0];
-                    String title = parts[1];
-                    String snippet = parts[2];
-                    PageInfo p = new PageInfo(url, title, snippet);
-                    // no exemplo não temos outlinks nem tokenização complexa: indexa palavra do título e snippet
-                    Map<String, Set<String>> map = new HashMap<>();
-                    StreamTokenizerHelper.tokenizeToMap(title + " " + snippet, url, map);
-                    boolean ok = gw.indexPage(p, map);
-                    System.out.println("Index result: " + ok);
-                } else if (line.startsWith("inbound ")) {
-                    String url = line.substring(8).trim();
-                    Set<String> in = gw.inboundLinks(url);
-                    System.out.println("Inbound (" + in.size() + "):");
-                    for (String s : in) System.out.println("  " + s);
-                } else if (line.equals("stats")) {
-                    Map<String,Object> st = gw.getStats();
-                    System.out.println("Stats: " + st);
-                } else {
-                    System.out.println("Unknown command");
+            System.out.println("╔════════════════════════════════════════╗");
+            System.out.println("║        🔍 SISTEMA DE PESQUISA SD        ║");
+            System.out.println("╚════════════════════════════════════════╝");
+
+            boolean running = true;
+            while (running) {
+                System.out.println("\n===== MENU PRINCIPAL =====");
+                System.out.println("1️->  Pesquisar termos");
+                System.out.println("2️->  Indexar manualmente uma página");
+                System.out.println("3️->  Ver links inbound de uma URL");
+                System.out.println("4️->  Mostrar estatísticas");
+                System.out.println("0️->  Sair");
+                System.out.print("Escolha uma opção: ");
+
+                String option = sc.nextLine().trim();
+                String line;
+                switch (option) {
+                    case "1":
+                        System.out.print("Introduza os termos de pesquisa: ");
+                        String[] parts = sc.nextLine().trim().split("\\s+");
+                        List<String> terms = Arrays.asList(parts);
+                        System.out.println("Pagina?");
+                        line = sc.nextLine();
+                        int npag = Integer.parseInt(line);
+                        List<SearchResult> results = gw.search(terms, npag, 10);
+                        System.out.println("\n🔎 Resultados (página "+npag+"+):");
+                        if (results.isEmpty()) System.out.println("(nenhum resultado encontrado)");
+                        for (SearchResult r : results) System.out.println(r);
+                        break;
+
+                    case "2":
+                        System.out.print("URL: ");
+                        String url = sc.nextLine().trim();
+                        System.out.print("Título: ");
+                        String title = sc.nextLine().trim();
+                        System.out.print("Snippet: ");
+                        String snippet = sc.nextLine().trim();
+                        PageInfo p = new PageInfo(url, title, snippet);
+                        Map<String, Set<String>> map = new HashMap<>();
+                        StreamTokenizerHelper.tokenizeToMap(title + " " + snippet, url, map);
+                        boolean ok = gw.indexPage(p, map);
+                        System.out.println(ok ? "✅ Página indexada com sucesso." : "❌ Falha ao indexar.");
+                        break;
+
+                    case "3":
+                        System.out.print("Introduza a URL: ");
+                        String target = sc.nextLine().trim();
+                        Set<String> inbound = gw.inboundLinks(target);
+                        System.out.println("\n🔗 Links inbound (" + inbound.size() + "):");
+                        if (inbound.isEmpty()) System.out.println("(nenhum link encontrado)");
+                        for (String s : inbound) System.out.println("  - " + s);
+                        break;
+
+                    case "4":
+                        Map<String, Object> stats = gw.getStats();
+                        System.out.println("\n📊 Estatísticas gerais:");
+                        System.out.println("Cache do Gateway: " + stats.get("gatewayCachedKeys"));
+                        List<?> barrels = (List<?>) stats.get("barrels");
+                        if (barrels != null)
+                            System.out.println("Barrels registados: " + barrels.size());
+                        System.out.println(stats);
+                        break;
+
+                    case "0":
+                        running = false;
+                        break;
+
+                    default:
+                        System.out.println("❗ Opção inválida. Tente novamente.");
+                        break;
                 }
             }
 
-            System.out.println("Client exiting.");
+            System.out.println("👋 Encerrando cliente...");
             sc.close();
         } catch (Exception e) {
-            System.err.println("Client error: " + e.getMessage());
-            e.printStackTrace();
         }
-    }
-
-    // helper simple to split into n parts (naive)
-    private static String[] splitArgs(String s, int n) {
-        String[] out = new String[n];
-        for (int i = 0; i < n-1; i++) {
-            int idx = s.indexOf(' ');
-            if (idx == -1) {
-                out[i] = s;
-                s = "";
-            } else {
-                out[i] = s.substring(0, idx);
-                s = s.substring(idx+1).trim();
-            }
-        }
-        out[n-1] = s;
-        return out;
     }
 }
 
-/**
- * Pequeno utilitário interno para tokenizar strings em palavras e preencher um map palavra->set(url).
- * (evita dependências externas)
- */
 class StreamTokenizerHelper {
     public static void tokenizeToMap(String text, String url, Map<String, Set<String>> map) {
         if (text == null) return;

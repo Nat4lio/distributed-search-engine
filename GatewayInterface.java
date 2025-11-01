@@ -18,4 +18,6 @@ public interface GatewayInterface extends Remote {
 
     // Estatísticas de sistema
     public java.util.Map<String, Object> getStats() throws RemoteException;
+
+    String registerNewBarrel(BarrelInterface stub) throws RemoteException;
 }

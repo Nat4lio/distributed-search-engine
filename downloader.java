@@ -4,7 +4,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ForkJoinPool;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,14 +48,44 @@ public static HashMap<String,Set<String>> buildHashMap(String text,String url){
     return hm;
 }
 
-public static void parallelIndexing(url_queue urls,List<BarrelInterface> barrels,ConcurrentLinkedDeque<String> processados){
+public static void refreshBarrels(Registry registry, List<BarrelInterface> barrels) {
+    try {
+        String[] bound = registry.list();
+        Set<String> currentNames = new HashSet<>();
+        for (BarrelInterface b : barrels) {
+            try {
+                currentNames.add(b.getName());
+            } catch (Exception ignored) {}
+        }
+
+        for (String name : bound) {
+            if (name.startsWith("Barrel") && !currentNames.contains(name)) {
+                try {
+                    BarrelInterface b = (BarrelInterface) registry.lookup(name);
+                    barrels.add(b);
+                    System.out.println("[Downloader] Novo barrel detectado: " + name);
+                } catch (Exception e) {
+                    System.err.println("[Downloader] Erro ao adicionar barrel " + name + ": " + e.getMessage());
+                }
+            }
+        }
+
+        System.out.println("[Downloader] Total de barrels ligados: " + barrels.size());
+    } catch (Exception e) {
+        System.err.println("[Downloader] Erro ao atualizar barrels: " + e.getMessage());
+    }
+}
+
+public static void parallelIndexing(url_queue urls,List<BarrelInterface> barrels,ConcurrentLinkedDeque<String> processados,Registry registry){
     try (ForkJoinPool pool = new ForkJoinPool(parallel_threshold)) {
         for(int i = 0;i<parallel_threshold;i++){
         pool.execute(() -> { 
             try {
+                refreshBarrels(registry, barrels);
                 while (true) {
                     String url = urls.getNextUrl();
                     if (url!=null && !processados.contains(url)) {
+
                         System.out.println("Thread " + Thread.currentThread().getName() + " processando URL");
 
                         Document doc = download_page(url);
@@ -76,15 +106,12 @@ public static void parallelIndexing(url_queue urls,List<BarrelInterface> barrels
                                 b.putIndex(hm, pageInfoBatch);
                             } catch (RemoteException e) {}
                         }
-
                         processados.add(url);
                     }
                     Thread.sleep(500);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
             } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         });
         }
@@ -95,29 +122,22 @@ public static void parallelIndexing(url_queue urls,List<BarrelInterface> barrels
 
 public static void main(String[] args) throws InterruptedException, RemoteException, MalformedURLException, NotBoundException{;
     ConcurrentLinkedDeque<String> urls_processados = new ConcurrentLinkedDeque<>();
-    int queuePort = 1200;
-    try {
-        LocateRegistry.createRegistry(queuePort);
-        System.out.println("RMI registry criado na porta " + queuePort);
-    } catch (Exception e) {
-        System.out.println("Registry já existe na porta " + queuePort);
-    }
+    System.setProperty("java.rmi.server.hostname", "localhost");
+    String registryhost = "localhost";
+    int registryPort = 1099;
 
-    Registry barrelRegistry = LocateRegistry.getRegistry("localhost", 1099);
-    BarrelInterface Barrel1 = (BarrelInterface) barrelRegistry.lookup("barrel1");
-    System.out.println("barrel1 registado");
-    BarrelInterface Barrel2 = (BarrelInterface) barrelRegistry.lookup("barrel2");
-    System.out.println("barrel2 registado");
-    BarrelInterface Barrel3 = (BarrelInterface) barrelRegistry.lookup("barrel3");
-    System.out.println("barrel3 registado");
-    List<BarrelInterface> Barrels = Arrays.asList(Barrel1,Barrel2,Barrel3);
+    try{
+    Registry registry = LocateRegistry.getRegistry(registryhost, registryPort);
+    url_queue queue = (url_queue) registry.lookup("queue");
 
-    Registry queueR = LocateRegistry.getRegistry("localhost",1099);
-    url_queue queue = (url_queue) queueR.lookup("queue");
+    List<BarrelInterface> barrels = new ArrayList<>();
+    refreshBarrels(registry, barrels);
+
     System.out.println("queue registada");
     
 
-    parallelIndexing(queue,Barrels,urls_processados);
+    parallelIndexing(queue,barrels,urls_processados,registry);
+    }catch(Exception e){};
 
 }
 }

@@ -27,13 +27,18 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
 
     // flag para simular falha no barrel (usada nos testes)
     private volatile boolean alive = true;
-
-    protected BarrelImpl() throws RemoteException {
+    String name;
+    protected BarrelImpl(String name) throws RemoteException {
         super();
         invertedIndex = new ConcurrentHashMap<>();
         pages = new ConcurrentHashMap<>();
         inboundLinks = new ConcurrentHashMap<>();
         urls = new ConcurrentLinkedQueue<>();
+        this.name = name;
+    }
+
+    public String getName(){
+        return name;
     }
 
     private void checkAlive() throws RemoteException {
@@ -70,7 +75,23 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
                 }
             }
         }
+       System.out.println("[Barrel " + name + "] recebeu atualização em " +new java.text.SimpleDateFormat("HH:mm:ss.SSS").format(new java.util.Date()) +" (PID=" + ProcessHandle.current().pid() + ")");
     }
+
+    public synchronized void syncFullIndex(  Map<String, Set<String>> fullInvertedIndex, Map<String, PageInfo> fullPages,Map<String, Set<String>> fullInboundLinks) throws RemoteException {
+    checkAlive();
+
+    if (fullInvertedIndex != null)
+        invertedIndex.putAll(fullInvertedIndex);
+
+    if (fullPages != null)
+        pages.putAll(fullPages);
+
+    if (fullInboundLinks != null)
+        inboundLinks.putAll(fullInboundLinks);
+
+    System.out.println("[Barrel] Full index synchronized! Total entries: " + invertedIndex.size());
+}
 
     @Override
     public Set<String> searchUrls(List<String> terms) throws RemoteException {
@@ -123,25 +144,62 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         this.alive = false;
     }
 
+    @Override
+    public synchronized Map<String, Object> getFullIndex() throws RemoteException {
+        checkAlive();
+        Map<String, Object> full = new HashMap<>();
+        // devolve cópias para evitar partilha direta da estrutura interna
+        Map<String, Set<String>> inv = new HashMap<>();
+        for (Map.Entry<String, Set<String>> e : invertedIndex.entrySet()) {
+            inv.put(e.getKey(), new HashSet<>(e.getValue()));
+        }
+        Map<String, PageInfo> pgs = new HashMap<>(pages);
+        Map<String, Set<String>> inb = new HashMap<>();
+        for (Map.Entry<String, Set<String>> e : inboundLinks.entrySet()) {
+            inb.put(e.getKey(), new HashSet<>(e.getValue()));
+        }
+        full.put("invertedIndex", inv);
+        full.put("pages", pgs);
+        full.put("inboundLinks", inb);
+        return full;
+    }
+
+    @Override
+    public synchronized Map<String, PageInfo> getAllPages() throws RemoteException {
+        checkAlive();
+        return new HashMap<>(pages);
+    }
+
     // main original (sem alterações funcionais)
     public static void main(String[] args) {
-        try {
-            String host = "localhost";
-            int port = 1099;
-            LocateRegistry.createRegistry(port);
-            Registry registry = LocateRegistry.getRegistry(host, port);
-            BarrelImpl barrel1 = new BarrelImpl();
-            BarrelImpl barrel2 = new BarrelImpl();
-            BarrelImpl barrel3 = new BarrelImpl();
-            registry.rebind("barrel1", barrel1);
-            System.out.println("Barrel bound as barrel1 on " + host + ":" + port);
-            registry.rebind("barrel2", barrel2);
-            System.out.println("Barrel bound as barrel2 on " + host + ":" + port);
-            registry.rebind("barrel3", barrel3);
-            System.out.println("Barrel bound as barrel3 on " + host + ":" + port);
-        } catch (Exception e) {
-            System.err.println("Barrel exception: " + e.toString());
-            e.printStackTrace();
-        }
+    try {
+        String registryHost = "localhost";
+        int registryPort = 1099;
+        System.setProperty("java.rmi.server.hostname", "localhost");
+        Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
+
+        GatewayInterface gw = (GatewayInterface) registry.lookup("Gateway");
+
+        // cria o barrel com nome temporário
+        BarrelImpl localStub = new BarrelImpl("temp");
+
+        String assignedName
+
+        // registra primeiro o stub no Registry
+        registry.rebind(assignedName, localStub);
+        localStub.name = assignedName;
+
+        System.out.println("[Barrel] registado no RMI como: " + assignedName);
+
+        // agora sim, comunica ao Gateway para sincronizar
+        gw.registerNewBarrel(localStub);
+
+        System.out.println("Tamanho do invertedIndex: " + localStub.invertedIndex.size());
+        System.out.println("Tamanho do pages: " + localStub.pages.size());
+        System.out.println("Tamanho do inboundLinks: " + localStub.inboundLinks.size());
+
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+}
 }

@@ -31,7 +31,6 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
     protected BarrelImpl(String assignedName) throws RemoteException {
         super();
         this.name = assignedName;
-        // NÃO carregamos nada do disco — versão "sem ficheiros"
     }
 
     public String getName() throws RemoteException{

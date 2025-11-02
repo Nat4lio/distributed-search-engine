@@ -1,0 +1,147 @@
+Relatório SD
+Autores: Rui Camarão e João Natálio
+
+1. Testes de software
+
+	Indexar novo URL introduzido por utilizador - Pass
+
+	Indexar iterativamente ou recursivamente todos os URLs encontrados - Pass
+
+	Pesquisar páginas que contenham um conjunto de palavras - Pass
+
+	Páginas ordenadas por número de ligações recebidas de outras páginas - Pass
+
+	Consultar lista de páginas com ligações para uma página específica - Pass
+
+	Página de estatísticas atualizada em tempo real - Pass
+
+	Resultados da pesquisa agrupados de 10 em 10 - Pass
+
+	A informação é idêntica em todos os storage barrels (reliable multicast) - Pass
+	Testamos o seu funcionamento com prints no momento exato da indexação feita pelos robots com o horario da operação e o barrel que foi atualizado
+
+	Serviço correto se funcionar pelo menos um storage barrel e a gateway -Pass
+	Funciona
+
+	Os storage barrels recuperam o seu estado se avariarem (crash) - Pass
+	Se um barrel crashar e iniciarmos um novo que vem com o mesmo index, este vem com a informação do que crashou mais a nova dos outros barrels
+
+	Balanceamento da carga nas pesquisas sobre os storage barrels - Pass
+	Método chooseBarrel trata disso
+
+	Os downloaders executam em paralelo - Pass
+	Testamos com prints com o index do robot no momento em que agarra um ulr e notamos a variação dos indexs em tempo real
+
+	A gateway recupera de quaisquer avarias internas (não têm efeito nos clientes) - Pass
+	Se um barrel crashar, o gateway tira o da lista e não impacta em nada
+
+	Pedidos de indexação são respondidos apenas por um downloader - Pass
+	Existe mecanismo de sincronização na queue
+
+2. Arquitetura de Software
+	
+Gateway
+
+	Coordenador central.
+	
+	Recebe queries dos clientes.
+
+	Distribui pesquisas entre os barrels (round-robin).
+
+	Indexa páginas enviadas pelo downloader.
+
+	Tolerante a falhas dos barrels ativos.
+
+	Mantém cache das pesquisas mais recentes.
+
+Barrel	
+
+	Armazena o índice invertido palavra → conjunto de URLs.
+
+	Mantém informações de páginas (PageInfo) e links de entrada (inboundLinks).
+
+	Permite atualização incremental de índice (putIndex) e consulta (searchUrls).
+
+	Pode ser sincronizado com outros barrels ao ser registado no Gateway.
+
+Downloader / Indexador
+
+	Baixa páginas web.
+
+	Extrai texto, título, snippet e links de saída.
+
+	Constroi mapa invertido (palavra → URL) e envia para os barrels via Gateway.
+
+	Suporta indexação paralela usando ForkJoinPool.
+
+	Detecta dinamicamente novos barrels.
+
+Client
+
+	Interface para pesquisa e obtenção de informações.
+
+	Não precisa saber detalhes de qual barrel serve a query.
+
+
+
+Downloader baixa páginas e envia PageInfo + índice parcial para o Gateway.
+
+Gateway distribui o índice pelos barrels ativos.
+
+Clientes enviam queries para o Gateway.
+
+Gateway consulta os barrels (round-robin), agrega resultados, ordena e devolve ao cliente.
+
+Gateway mantém cache de queries recentes.
+
+
+
+3. Funcionamento do RPC/RMI
+
+
+Interfaces remotas:
+
+	BarrelInterface → métodos como putIndex, searchUrls, getPageInfo, inboundLinks.
+
+	GatewayInterface → métodos como search, indexPage, inboundLinks, getStats.
+
+Componentes:
+
+	Cada Barrel implementa UnicastRemoteObject e se registra no RMI Registry.
+
+	Gateway implementa UnicastRemoteObject, é o ponto de contacto do cliente.
+
+	Comunicação entre cliente ↔ Gateway e Gateway ↔ Barrel via RMI.
+	
+Mecanismos adicionais:
+
+	ping() usado para verificar se barrels estão ativos.
+
+	Synchronização de novos barrels com índices existentes (getFullIndex + putIndex).
+
+
+
+4. Replicação (Reliable Multicast)
+
+Quando um novo barrel é registado, o Gateway sincroniza-o com o último barrel ativo:
+
+Gateway chama getFullIndex no barrel existente.
+
+Copia índices invertidos e páginas.
+
+Chama putIndex no novo barrel.
+
+Garante que todos os barrels têm cópias consistentes do índice.
+
+Permite tolerância a falhas: se um barrel cair, os restantes continuam a servir queries.
+
+
+5. Distribuição de tarefas
+
+Distribuimos o trabalho como foi recomendado no enunciado: o Rui estava responsável pelo downloader, barrels e a queue, enquanto o João pelo gatway e o cliente, apesar de darmos review ao código um do outro e resolvemos bugs um do outro.
+
+
+
+
+
+

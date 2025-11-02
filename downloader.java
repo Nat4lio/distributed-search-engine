@@ -31,11 +31,13 @@ public class downloader {
         }
     }
 
-    public static HashMap<String,Set<String>> buildHashMap(String text,String url){
-    HashMap<String,Set<String>> hm = new HashMap<>();
+   public static HashMap<String, Set<String>> buildHashMap(String text, String url) {
+    HashMap<String, Set<String>> hm = new HashMap<>();
     String[] words = text.split("\\W+");
-    for (String w :words){
-        hm.computeIfAbsent(url, k -> new HashSet<>()).add(w);
+    for (String w : words) {
+        if (w.isBlank()) continue;
+        String word = w.toLowerCase();
+        hm.computeIfAbsent(word, k -> new HashSet<>()).add(url);
     }
     return hm;
 }
@@ -89,7 +91,7 @@ public class downloader {
                         String titulo = doc.title();
                         String snippet = texto.length() > 100 ? texto.substring(0, 100) : texto;
                         PageInfo page = new PageInfo(url, titulo, snippet);
-
+                        page.addOutLink(doc);
                         Map<String, PageInfo> pageInfoBatch = new HashMap<>();
                         pageInfoBatch.put(url, page);
 

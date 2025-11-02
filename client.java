@@ -38,7 +38,7 @@ public class client {
                         line = sc.nextLine();
                         int npag = Integer.parseInt(line);
                         List<SearchResult> results = gw.search(terms, npag, 10);
-                        System.out.println("\n🔎 Resultados (página "+npag+"+):");
+                        System.out.println("\n🔎 Resultados (página "+npag+"):");
                         if (results.isEmpty()) System.out.println("(nenhum resultado encontrado)");
                         for (SearchResult r : results) System.out.println(r);
                         break;

@@ -2,12 +2,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
 
-/**
- * Cliente de exemplo para testar a Gateway.
- * Usage: java Client <gateway_name> <registry_host> <registry_port>
- */
 public class client {
-
     public static void main(String[] args) {
         try {
             String gatewayName = "Gateway";
@@ -103,8 +98,10 @@ class StreamTokenizerHelper {
         if (text == null) return;
         String[] words = text.toLowerCase().split("\\W+");
         for (String w : words) {
-            if (w.trim().isEmpty()) continue;
-            map.computeIfAbsent(w, k -> new HashSet<>()).add(url);
+            if (!w.trim().isEmpty()) {
+                map.putIfAbsent(w, new HashSet<>());
+                map.get(w).add(url);
+            }
         }
     }
 }

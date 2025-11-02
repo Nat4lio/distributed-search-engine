@@ -1,23 +1,19 @@
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Interface que o cliente usa para falar com a Gateway.
- * A Gateway encapsula seleção de Barrel e failover.
+ * Interface RMI da Gateway.
+ * Inclui registerNewBarrel para atribuir nomes únicos aos barrels.
  */
 public interface GatewayInterface extends Remote {
-    // Pesquisa por termos, devolve SearchResult agrupado (Gateway format)
-    public java.util.List<SearchResult> search(List<String> terms, int pageNumber, int pageSize) throws RemoteException;
+    List<SearchResult> search(List<String> terms, int pageNumber, int pageSize) throws RemoteException;
+    boolean indexPage(PageInfo page, Map<String, Set<String>> pageWords) throws RemoteException;
+    Set<String> inboundLinks(String url) throws RemoteException;
+    Map<String, Object> getStats() throws RemoteException;
 
-    // Inserir / pedir indexação de uma página (gateway encaminha para Barrels)
-    public boolean indexPage(PageInfo page, java.util.Map<String, java.util.Set<String>> pageWords) throws RemoteException;
-
-    // Obter inbound links
-    public java.util.Set<String> inboundLinks(String url) throws RemoteException;
-
-    // Estatísticas de sistema
-    public java.util.Map<String, Object> getStats() throws RemoteException;
-
+    // Permite a um Barrel pedir registo/nome único ao Gateway
     String registerNewBarrel(BarrelInterface stub) throws RemoteException;
 }

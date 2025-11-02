@@ -4,40 +4,37 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Implementação simples do Barrel. Mantém:
- *  - invertedIndex: palavra -> set URLs
- *  - pages: url -> PageInfo
- *  - inboundLinks: url -> set URLs que apontam para ele
+ * BarrelImpl - versão SEM persistência em disco.
+ * - O primeiro barrel criado inicia VAZIO.
+ * - Cada novo barrel é registado no Gateway que devolve um nome.
+ * - O Gateway é responsável por sincronizar o novo barrel com o anterior.
  *
- * A putIndex é usada para replicação (Gateway ou Downloader chamam isto).
+ * Nota: este ficheiro assume que o Gateway implementa registerNewBarrel(BarrelInterface)
+ * e que, quando devolve o nome, já terá tentado sincronizar (ou irá fazê-lo).
  */
-// (mantém os imports e a maior parte do código anterior)
-
 public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
 
     private static final long serialVersionUID = 1L;
 
-    private final ConcurrentHashMap<String, Set<String>> invertedIndex;
-    private final ConcurrentHashMap<String, PageInfo> pages;
-    public final ConcurrentHashMap<String, Set<String>> inboundLinks;
-    static ConcurrentLinkedQueue<String> urls;
+    // Estruturas em memória (não persistidas)
+    private final ConcurrentHashMap<String, Set<String>> invertedIndex = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, PageInfo> pages = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Set<String>> inboundLinks = new ConcurrentHashMap<>();
 
-    // flag para simular falha no barrel (usada nos testes)
     private volatile boolean alive = true;
-    String name;
-    protected BarrelImpl(String name) throws RemoteException {
+
+    // Nome atribuído pelo Gateway (Barrel1, Barrel2, ...)
+    public String name;
+
+    protected BarrelImpl(String assignedName) throws RemoteException {
         super();
-        invertedIndex = new ConcurrentHashMap<>();
-        pages = new ConcurrentHashMap<>();
-        inboundLinks = new ConcurrentHashMap<>();
-        urls = new ConcurrentLinkedQueue<>();
-        this.name = name;
+        this.name = assignedName;
+        // NÃO carregamos nada do disco — versão "sem ficheiros"
     }
 
-    public String getName(){
+    public String getName() throws RemoteException{
         return name;
     }
 
@@ -50,24 +47,24 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         checkAlive();
         if (partialIndex != null) {
             for (Map.Entry<String, Set<String>> e : partialIndex.entrySet()) {
-                String url = e.getKey();
-                Set<String> words = e.getValue();
-                for(String word: words){
+                String word = e.getKey().toLowerCase();
+                Set<String> urls = e.getValue();
                 invertedIndex.compute(word, (k, old) -> {
+                    k = k.toLowerCase();
                     if (old == null) old = Collections.newSetFromMap(new ConcurrentHashMap<>());
-                    old.add(url);
+                    old.addAll(urls);
                     return old;
                 });
-            }
             }
         }
         if (pagesBatch != null) {
             for (Map.Entry<String, PageInfo> e : pagesBatch.entrySet()) {
                 String url = e.getKey();
-                PageInfo pinfo = e.getValue();
-                pages.put(url, pinfo);
-                for (String out : pinfo.outLinks) {
+                PageInfo info = e.getValue();
+                pages.put(url, info);
+                for (String out : info.outLinks) {
                     inboundLinks.compute(out, (k, old) -> {
+                        k = k.toLowerCase();
                         if (old == null) old = Collections.newSetFromMap(new ConcurrentHashMap<>());
                         old.add(url);
                         return old;
@@ -75,23 +72,7 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
                 }
             }
         }
-       System.out.println("[Barrel " + name + "] recebeu atualização em " +new java.text.SimpleDateFormat("HH:mm:ss.SSS").format(new java.util.Date()) +" (PID=" + ProcessHandle.current().pid() + ")");
     }
-
-    public synchronized void syncFullIndex(  Map<String, Set<String>> fullInvertedIndex, Map<String, PageInfo> fullPages,Map<String, Set<String>> fullInboundLinks) throws RemoteException {
-    checkAlive();
-
-    if (fullInvertedIndex != null)
-        invertedIndex.putAll(fullInvertedIndex);
-
-    if (fullPages != null)
-        pages.putAll(fullPages);
-
-    if (fullInboundLinks != null)
-        inboundLinks.putAll(fullInboundLinks);
-
-    System.out.println("[Barrel] Full index synchronized! Total entries: " + invertedIndex.size());
-}
 
     @Override
     public Set<String> searchUrls(List<String> terms) throws RemoteException {
@@ -99,16 +80,13 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         if (terms == null || terms.isEmpty()) return Collections.emptySet();
         Set<String> result = null;
         for (String t : terms) {
+            if (t == null) continue;
             Set<String> urls = invertedIndex.getOrDefault(t.toLowerCase(), Collections.emptySet());
-            if (result == null) {
-                result = new HashSet<>(urls);
-            } else {
-                result.retainAll(urls);
-            }
+            if (result == null) result = new HashSet<>(urls);
+            else result.retainAll(urls);
             if (result.isEmpty()) break;
         }
-        if (result == null) return Collections.emptySet();
-        return result;
+        return (result == null) ? Collections.emptySet() : result;
     }
 
     @Override
@@ -137,13 +115,13 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         return alive;
     }
 
-    // **novo**: shutdown
     @Override
     public void shutdown() throws RemoteException {
-        System.out.println("BarrelImpl: shutdown called, switching alive=false");
         this.alive = false;
+        System.out.println("[Barrel:" + name + "] shutdown called");
     }
 
+    // Métodos extras usados para sincronização pelo Gateway
     @Override
     public synchronized Map<String, Object> getFullIndex() throws RemoteException {
         checkAlive();
@@ -170,44 +148,34 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         return new HashMap<>(pages);
     }
 
-    // main original (sem alterações funcionais)
+    // ---- main: regista-se no Gateway e obtém nome; NÃO usa ficheiros ----
     public static void main(String[] args) {
-    try {
-        String registryHost = "localhost";
-        int registryPort = 1099;
-        System.setProperty("java.rmi.server.hostname", "localhost");
-        Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
+        try {
+            // parâmetros: <registryHost> <registryPort>
+            String registryHost = (args.length >= 1) ? args[0] : "localhost";
+            int registryPort = (args.length >= 2) ? Integer.parseInt(args[1]) : 1099;
 
-        // obtém stub do gateway
-        GatewayInterface gw = (GatewayInterface) registry.lookup("Gateway");
+            System.setProperty("java.rmi.server.hostname", "localhost");
+            Registry registry = LocateRegistry.getRegistry(registryHost, registryPort);
 
-        // cria o barrel temporário
-        BarrelImpl localStub = new BarrelImpl("temp");
+            // obtem o stub do gateway (assume que já está arrancado)
+            GatewayInterface gw = (GatewayInterface) registry.lookup("Gateway");
 
-        // regista temporariamente no registry (necessário para o gateway conseguir chamá-lo)
-        registry.rebind("temp", localStub);
+            // cria stub temporário com nome "temp" (não carrega nada)
+            BarrelImpl localStub = new BarrelImpl("temp");
 
-        // gateway devolve nome único (ex: Barrel1, Barrel2)
-        String assignedName = gw.registerNewBarrel(localStub);
+            // pede ao gateway um nome único — gateway deverá sincronizar o novo com o anterior
+            String assignedName = gw.registerNewBarrel(localStub);
 
-        // agora atualiza o nome e faz o rebind com o nome definitivo
-        localStub.name = assignedName;
-        registry.rebind(assignedName, localStub);
+            // actualiza o nome localmente e faz o rebind com o nome definitivo
+            localStub.name = assignedName;
+            registry.rebind(assignedName, localStub);
 
-        // remove o temporário (opcional)
-        try { registry.unbind("temp"); } catch (Exception ignored) {}
+            System.out.println("[Barrel] registado como: " + assignedName);
 
-        System.out.println("[Barrel] registado como: " + assignedName);
-
-        // prints informativos
-        System.out.println("Tamanho do invertedIndex: " + localStub.invertedIndex.size());
-        System.out.println("Tamanho do pages: " + localStub.pages.size());
-        System.out.println("Tamanho do inboundLinks: " + localStub.inboundLinks.size());
-
-    } catch (Exception e) {
-        System.err.println("[Barrel] Erro ao iniciar: " + e.getMessage());
-        e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("[Barrel] exception: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
-}
-
 }

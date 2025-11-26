@@ -1,8 +1,0 @@
-{
-    "java.project.sourcePaths": [
-        "."
-    ],
-    "java.project.referencedLibraries": [
-        "lib/jsoup-1.18.3.jar"
-    ]
-}

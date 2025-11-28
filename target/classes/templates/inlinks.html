@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Inlinks</title>
+</head>
+<body>
+    <h1>Pages linking to "<span th:text="${targetUrl}"></span>"</h1>
+    <ul>
+        <li th:each="link : ${inlinks}" th:text="${link}"></li>
+    </ul>
+    <a href="/">Back to search</a>
+</body>
+</html>

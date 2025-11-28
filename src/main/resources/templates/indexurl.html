@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Indexed URLs</title>
+</head>
+<body>
+    <h1>Indexed URLs</h1>
+    <ul>
+        <li th:each="url : ${urls}" th:text="${url}"></li>
+    </ul>
+    <a href="/">Back to search</a>
+</body>
+</html>

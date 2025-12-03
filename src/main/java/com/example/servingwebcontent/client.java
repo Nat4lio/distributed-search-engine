@@ -23,7 +23,7 @@ public class client {
             while (running) {
                 System.out.println("\n===== MENU PRINCIPAL =====");
                 System.out.println("1->  Pesquisar termos");
-                System.out.println("2->  Indexar manualmente uma página");
+                System.out.println("2->  Indexar um url");
                 System.out.println("3->  Ver links inbound de uma URL");
                 System.out.println("4->  Mostrar estatísticas");
                 System.out.println("0->  Sair");
@@ -48,8 +48,8 @@ public class client {
                     case "2":
                         System.out.print("URL: ");
                         String urlToIndex = sc.nextLine().trim();
-                        boolean ok2 = gw.indexPage(urlToIndex);
-                        System.out.println(ok2 ? "URL enviada para indexação." : "Falha ao enviar URL.");
+                        boolean ok = gw.indexPage(urlToIndex);
+                        System.out.println(ok ? "URL enviada para indexação." : "Falha ao enviar URL.");
                         break;
 
                     case "3":

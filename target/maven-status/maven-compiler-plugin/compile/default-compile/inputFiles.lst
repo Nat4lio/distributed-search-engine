@@ -4,6 +4,7 @@
 /workspaces/sd/src/main/java/com/example/servingwebcontent/IndexController.java
 /workspaces/sd/src/main/java/com/example/servingwebcontent/GatewayImpl.java
 /workspaces/sd/src/main/java/com/example/servingwebcontent/BarrelImpl.java
+/workspaces/sd/src/main/java/com/example/servingwebcontent/base.java
 /workspaces/sd/src/main/java/com/example/servingwebcontent/client.java
 /workspaces/sd/src/main/java/com/example/servingwebcontent/url_queue.java
 /workspaces/sd/src/main/java/com/example/servingwebcontent/BarrelInterface.java

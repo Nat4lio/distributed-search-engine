@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Search Engine</title>
+    <meta charset="UTF-8">
+    <title>Pesquisar</title>
 </head>
 <body>
-    <h1>Search Engine</h1>
-    <form action="/search" method="get">
-        <input type="text" name="q" placeholder="Enter search query">
-        <button type="submit">Search</button>
-    </form>
+
+<h1>Pesquisa</h1>
+
+<form action="/results" method="get">
+    <label>Termo:</label>
+    <input type="text" name="q" required>
+    <button type="submit">Procurar</button>
+</form>
+
+<a href="/">Voltar</a>
+
 </body>
 </html>

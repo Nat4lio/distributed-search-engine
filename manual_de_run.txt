@@ -1,2 +1,0 @@
-mvn clean install (caso nao tenha instalado o mvn)
-mvn spring-boot:run

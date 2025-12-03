@@ -3,6 +3,7 @@ com/example/servingwebcontent/client.class
 com/example/servingwebcontent/BarrelImpl.class
 com/example/servingwebcontent/GatewayImpl.class
 com/example/servingwebcontent/IndexController.class
+com/example/servingwebcontent/base.class
 com/example/servingwebcontent/BarrelInterface.class
 com/example/servingwebcontent/GatewayImpl$1.class
 com/example/servingwebcontent/SearchResult.class

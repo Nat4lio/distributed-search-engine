@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Indexed URLs</title>
+    <meta charset="UTF-8">
+    <title>Indexar</title>
 </head>
 <body>
-    <h1>Indexed URLs</h1>
-    <ul>
-        <li th:each="url : ${urls}" th:text="${url}"></li>
-    </ul>
-    <a href="/">Back to search</a>
+
+<h1>Indexar Página</h1>
+
+<form action="/index" method="post">
+    <label>URL:</label>
+    <input type="text" name="url" required>
+    <button type="submit">Indexar</button>
+</form>
+
+<a href="/">Voltar</a>
+
 </body>
 </html>

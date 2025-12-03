@@ -1,13 +1,27 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Inlinks</title>
+    <meta charset="UTF-8">
+    <title>Inbound Links</title>
 </head>
 <body>
-    <h1>Pages linking to "<span th:text="${targetUrl}"></span>"</h1>
+
+<h1>Inbound Links</h1>
+
+<form action="/inlinks" method="get">
+    <label>URL:</label>
+    <input type="text" name="url" required>
+    <button type="submit">Consultar</button>
+</form>
+
+<div th:if="${links}">
+    <h2>Resultados para <span th:text="${url}"></span>:</h2>
     <ul>
-        <li th:each="link : ${inlinks}" th:text="${link}"></li>
+        <li th:each="l : ${links}" th:text="${l}"></li>
     </ul>
-    <a href="/">Back to search</a>
+</div>
+
+<a href="/">Voltar</a>
+
 </body>
 </html>

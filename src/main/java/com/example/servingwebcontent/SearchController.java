@@ -12,35 +12,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class SearchController {
 
-    private GatewayInterface gateway;
-
-    // Lazy RMI lookup — evita falhas ao arrancar
-    private GatewayInterface getGateway() {
-        if (gateway == null) {
-            try {
-                Registry reg = LocateRegistry.getRegistry("localhost", 1099);
-                gateway = (GatewayInterface) reg.lookup("Gateway");
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to connect to the RMI gateway.", e);
-            }
-        }
-        return gateway;
-    }
-
-    @GetMapping("/")
-    public String index() {
-        return "index";
+    private GatewayInterface getGateway() throws Exception {
+        Registry reg = LocateRegistry.getRegistry("localhost", 1099);
+        return (GatewayInterface) reg.lookup("Gateway");
     }
 
     @GetMapping("/search")
+    public String searchForm() {
+        return "index";
+    }
+
+    @GetMapping("/results")
     public String search(@RequestParam("q") String query, Model model) throws Exception {
 
-        // lookup seguro
-        List<SearchResult> results =
-                getGateway().search(List.of(query), 1, 10);
+        List<SearchResult> results = getGateway().search(List.of(query), 1, 10);
 
         model.addAttribute("query", query);
         model.addAttribute("results", results);
+
         return "results";
     }
 }

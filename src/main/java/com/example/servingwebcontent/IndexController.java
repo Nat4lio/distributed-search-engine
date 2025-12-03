@@ -24,7 +24,7 @@ public class IndexController {
 
     @PostMapping("/index")
     public String submitIndex(@RequestParam("url") String url, Model model) throws Exception {
-        getGateway().indexPage(new PageInfo(url, "", ""), null);
+        getGateway().indexPage(url);
         model.addAttribute("url", url);
         return "indexed";
     }

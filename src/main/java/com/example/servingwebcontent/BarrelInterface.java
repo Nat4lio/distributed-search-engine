@@ -23,3 +23,4 @@ public interface BarrelInterface extends Remote {
     Map<String, Object> getFullIndex() throws RemoteException;
     Map<String, PageInfo> getAllPages() throws RemoteException;
 }
+

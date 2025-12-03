@@ -12,10 +12,11 @@ import java.util.Set;
  */
 public interface GatewayInterface extends Remote {
     List<SearchResult> search(List<String> terms, int pageNumber, int pageSize) throws RemoteException;
-    boolean indexPage(PageInfo page, Map<String, Set<String>> pageWords) throws RemoteException;
+    boolean indexPage(String url) throws RemoteException;
     Set<String> inboundLinks(String url) throws RemoteException;
     Map<String, Object> getStats() throws RemoteException;
 
     // Permite a um Barrel pedir registo/nome único ao Gateway
     String registerNewBarrel(BarrelInterface stub) throws RemoteException;
 }
+

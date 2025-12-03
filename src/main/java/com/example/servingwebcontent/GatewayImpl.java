@@ -58,7 +58,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
                                 continue;
                             }
                         } catch (RemoteException e) {
-                            System.err.println("[Gateway] Falha ao contactar " + name + " -> removido temporariamente.");
+                            System.err.println("[Gateway] Falha ao contactar " + name + " -> removido.");
                             it.remove();
                             barrelNames.remove(index);
                             continue;
@@ -98,7 +98,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
                         int pagesCount = (pgs == null) ? 0 : pgs.size();
                         System.out.println("[Gateway] Novo barrel sincronizado: " + words + " palavras, " + pagesCount + " páginas copiadas.");
                     } catch (RemoteException re) {
-                        System.err.println("[Gateway] Falha ao sincronizar novo barrel (putIndex): " + re.getMessage());
+                        System.err.println("[Gateway] Falha ao sincronizar novo barrel : " + re.getMessage());
                     }
                 } else {
                     System.out.println("[Gateway] getFullIndex devolveu null — nada a sincronizar.");
@@ -107,7 +107,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
                 System.err.println("[Gateway] Falha ao obter índice do barrel existente: " + e.getMessage());
             }
         } else {
-            System.out.println("[Gateway] Primeiro barrel — sem sincronização necessária.");
+            System.out.println("[Gateway] Primeiro barrel - sem sincronização necessária.");
         }
 
         // agora registamos o novo barrel
@@ -186,32 +186,26 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     // Indexação
     // -------------------------------------------------------------
     @Override
-    public boolean indexPage(PageInfo page, Map<String, Set<String>> pageWords) throws RemoteException {
-        if (page == null || page.url == null) throw new RemoteException("Invalid page");
-        int RETRIES = 3;
-        boolean anySuccess = false;
-        for (int i = 0; i < barrels.size(); i++) {
-            BarrelInterface b = barrels.get(i);
-            boolean success = false;
-            for (int r = 0; r < RETRIES; r++) {
-                try {
-                    Map<String, Set<String>> partial = (pageWords == null) ? new HashMap<>() : new HashMap<>(pageWords);
-                    Map<String, PageInfo> pagesBatch = new HashMap<>();
-                    pagesBatch.put(page.url, page);
-                    b.putIndex(partial, pagesBatch);
-                    success = true;
-                    anySuccess = true;
-                    break;
-                } catch (RemoteException e) {
-                    System.err.println("[Gateway] putIndex failed on barrel " + i + " attempt " + r + ": " + e.getMessage());
-                }
-            }
-            if (!success)
-                System.err.println("[Gateway] WARNING - barrel " + i + " failed after retries; continuing.");
+    public boolean indexPage(String url) throws RemoteException {
+        if (url == null || url.isBlank())
+            throw new RemoteException("URL inválido");
+
+        try {
+            // buscar fila
+            Registry registry = LocateRegistry.getRegistry("localhost", 1099);
+            url_queue q = (url_queue) registry.lookup("queue");
+
+            // meter URL na fila – downloader vai processar
+            q.addUrl(url);
+            cache.clear();
+            System.out.println("[Gateway] URL enviada para indexação: " + url);
+            return true;
+
+        } catch (Exception e) {
+            throw new RemoteException("Falha ao adicionar URL à queue: " + e.getMessage());
         }
-        cache.clear();
-        return anySuccess;
     }
+
 
     // -------------------------------------------------------------
     // Inbound Links + Estatísticas
@@ -266,3 +260,4 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         }
     }
 }
+

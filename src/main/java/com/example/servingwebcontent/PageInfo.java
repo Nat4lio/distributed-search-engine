@@ -33,4 +33,4 @@ public class PageInfo implements Serializable {
     @Override public String toString(){ 
         return String.format("PageInfo[url=%s,title=%s,snippet=%s,outLinks=%d]", url,title,snippet,outLinks.size()); }
     }
-    
+

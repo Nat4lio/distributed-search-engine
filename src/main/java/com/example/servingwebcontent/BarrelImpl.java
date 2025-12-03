@@ -51,7 +51,6 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
                 String word = e.getKey().toLowerCase();
                 Set<String> urls = e.getValue();
                 invertedIndex.compute(word, (k, old) -> {
-                    k = k.toLowerCase();
                     if (old == null) old = Collections.newSetFromMap(new ConcurrentHashMap<>());
                     old.addAll(urls);
                     return old;
@@ -65,7 +64,6 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
                 pages.put(url, info);
                 for (String out : info.outLinks) {
                     inboundLinks.compute(out, (k, old) -> {
-                        k = k.toLowerCase();
                         if (old == null) old = Collections.newSetFromMap(new ConcurrentHashMap<>());
                         old.add(url);
                         return old;
@@ -172,7 +170,7 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
             localStub.name = assignedName;
             registry.rebind(assignedName, localStub);
 
-            System.out.println("[Barrel] registado como: " + assignedName);
+            System.out.println("[Barrel] Novo Barrel registado como: " + assignedName);
 
         } catch (Exception e) {
             System.err.println("[Barrel] exception: " + e.getMessage());
@@ -180,3 +178,4 @@ public class BarrelImpl extends UnicastRemoteObject implements BarrelInterface {
         }
     }
 }
+

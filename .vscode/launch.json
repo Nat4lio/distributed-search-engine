@@ -1,0 +1,56 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "BarrelImpl",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.BarrelImpl",
+            "projectName": "servingwebcontent"
+        },
+        {
+            "type": "java",
+            "name": "GatewayImpl",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.GatewayImpl",
+            "projectName": "servingwebcontent"
+        },
+        {
+            "type": "java",
+            "name": "ServingWebApplication",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.ServingWebApplication",
+            "projectName": "servingwebcontent"
+        },
+        {
+            "type": "java",
+            "name": "client",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.client",
+            "projectName": "servingwebcontent"
+        },
+        {
+            "type": "java",
+            "name": "downloader",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.downloader",
+            "projectName": "servingwebcontent"
+        },
+        {
+            "type": "java",
+            "name": "url_queue_run",
+            "request": "launch",
+            "mainClass": "com.example.servingwebcontent.url_queue_run",
+            "projectName": "servingwebcontent"
+        }
+    ]
+}

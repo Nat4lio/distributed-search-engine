@@ -23,11 +23,12 @@ public class SearchController {
     }
 
     @GetMapping("/results")
-    public String search(@RequestParam("q") String query, Model model) throws Exception {
+    public String search(@RequestParam("q") String query,@RequestParam(value = "p", defaultValue = "1") int pg, Model model) throws Exception {
 
-        List<SearchResult> results = getGateway().search(List.of(query), 1, 10);
+        List<SearchResult> results = getGateway().search(List.of(query), pg, 10);
 
         model.addAttribute("query", query);
+        model.addAttribute("page",pg);
         model.addAttribute("results", results);
 
         return "results";

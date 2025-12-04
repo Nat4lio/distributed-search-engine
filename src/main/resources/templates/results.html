@@ -6,16 +6,33 @@
 </head>
 <body>
 
-<h1>Resultados para: <span th:text="${query}"></span></h1>
+<h2>Resultados de "<span th:text="${query}"></span>"</h2>
 
 <ul>
     <li th:each="r : ${results}">
-        <a th:href="${r.url}" th:text="${r.url}"></a> — 
-        <span th:text="${r.title}"></span>
+        <a th:href="${r.url}" th:text="${r.title}"></a>
+        <br>
+        <span th:text="${r.snippet}"></span>
     </li>
 </ul>
 
-<a href="/">Voltar</a>
+<hr>
+
+<!-- PAGINAÇÃO -->
+<div>
+    <!-- Página anterior -->
+    <a th:if="${page > 1}"
+       th:href="@{/results(q=${query}, p=${page - 1})}">
+        ◀ Página anterior
+    </a>
+
+    &nbsp;&nbsp; Página <span th:text="${page}"></span> &nbsp;&nbsp;
+
+    <!-- Próxima página -->
+    <a th:href="@{/results(q=${query}, p=${page + 1})}">
+        Próxima página ▶
+    </a>
+</div>
 
 </body>
 </html>

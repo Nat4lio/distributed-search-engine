@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <title>Inbound Links</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .back-link { text-decoration: none; color: #5f6368; display: inline-block; margin-bottom: 20px; }
+        .search-bar { background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex-grow: 1; padding: 10px; border: 1px solid #dfe1e5; border-radius: 4px; }
+        button { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <a th:href="@{/}" class="back-link">⬅ Voltar ao Menu</a>
+        <h2>Inbound Links</h2>
+        <form action="/inlinks" th:action="@{/inlinks}" method="get" class="search-bar">
+            <input type="text" name="url" placeholder="Insira o URL..." required>
+            <button type="submit">Consultar</button>
+        </form>
 
-<h1>Inbound Links</h1>
-
-<form action="/inlinks" method="get">
-    <label>URL:</label>
-    <input type="text" name="url" required>
-    <button type="submit">Consultar</button>
-</form>
-
-<div th:if="${links}">
-    <h2>Resultados para <span th:text="${url}"></span>:</h2>
-    <ul>
-        <li th:each="l : ${links}" th:text="${l}"></li>
-    </ul>
-</div>
-
-<a href="/">Voltar</a>
-
+        <div th:if="${links}">
+            <h3>Links para: <span th:text="${url}"></span></h3>
+            <ul style="padding-left:20px;">
+                <li th:each="l : ${links}" th:text="${l}" style="margin-bottom:5px;"></li>
+            </ul>
+        </div>
+    </div>
 </body>
 </html>

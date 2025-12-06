@@ -3,18 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>Pesquisar</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .nav-top { position: absolute; top: 20px; left: 20px; }
+        .btn-back { text-decoration: none; color: #5f6368; font-size: 14px; padding: 8px 16px; background: #f1f3f4; border-radius: 4px; }
+        .btn-back:hover { background-color: #e8eaed; }
+        h1 { font-size: 4rem; margin-bottom: 20px; letter-spacing: -2px; }
+        .search-box { display: flex; align-items: center; border: 1px solid #dfe1e5; border-radius: 24px; padding: 12px 20px; width: 500px; box-shadow: 0 1px 6px rgba(32,33,36,.28); }
+        .search-box:hover { box-shadow: 0 1px 6px rgba(32,33,36,.28), 0 2px 10px rgba(0,0,0,0.1); }
+        input { border: none; outline: none; flex-grow: 1; font-size: 16px; margin-left: 10px; }
+        button { margin-top: 20px; padding: 10px 20px; cursor: pointer; background: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 4px; }
+        button:hover { border-color: #dadce0; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+    </style>
 </head>
 <body>
+    <div class="nav-top">
+        <a th:href="@{/}" class="btn-back">🏠 Voltar ao Menu</a>
+    </div>
 
-<h1>Pesquisa</h1>
-
-<form action="/results" method="get">
-    <label>Termo:</label>
-    <input type="text" name="q" required>
-    <button type="submit">Procurar</button>
-</form>
-
-<a href="/">Voltar</a>
-
+    <h1>Search</h1>
+    <form action="/results" th:action="@{/results}" method="get" style="text-align:center;">
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" name="q" placeholder="Pesquise aqui..." required autofocus>
+        </div>
+        <button type="submit">Pesquisar</button>
+    </form>
 </body>
 </html>

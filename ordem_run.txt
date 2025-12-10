@@ -2,6 +2,9 @@ mvn clean install
 
 1. url_queue_run
 2. GatewayImpl
-3. BarrelImpl
-4. Downloader
-5. ServingWebApplication
+3. BarrelImpl 
+4. ServingWebApplication faz index de alg site para veres no downloader
+5. Downloader
+
+
+para rodar e assim, as classes novas estao todas interligadas basta rodares isto e ja funciona todo

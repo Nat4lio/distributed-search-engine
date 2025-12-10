@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * GatewayImpl - coordena queries e delega em Barrels.
- * Acrescenta: contagem top searches, tempos médios de pesquisa, inclusão de id em barrels stats.
+ * Correções aplicadas: cache com expiração automática, armazenamento de timestamp, LRU.
  */
 public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface {
 
@@ -19,8 +19,10 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     private final List<String> barrelNames = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger rr = new AtomicInteger(0);
 
-    private final Map<String, List<SearchResult>> cache;
+    // Cache corrigida
+    private final Map<String, CacheEntry> cache;
     private final int CACHE_SIZE = 100;
+    private final long CACHE_TTL_MS = 3000; // 3 segundos de validade
 
     private final AtomicInteger barrelCounter = new AtomicInteger(1);
 
@@ -32,11 +34,16 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
     protected GatewayImpl() throws RemoteException {
         super();
-        this.cache = Collections.synchronizedMap(new LinkedHashMap<String, List<SearchResult>>(16, 0.75f, true) {
-            protected boolean removeEldestEntry(Map.Entry<String, List<SearchResult>> eldest) {
-                return size() > CACHE_SIZE;
+
+        // LRU Cache com tamanho máximo
+        this.cache = Collections.synchronizedMap(
+            new LinkedHashMap<String, CacheEntry>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CacheEntry> eldest) {
+                    return size() > CACHE_SIZE;
+                }
             }
-        });
+        );
 
         // Monitor de saúde dos barrels
         Thread monitor = new Thread(this::healthMonitor);
@@ -124,6 +131,17 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         return barrels.get(idx);
     }
 
+    // Classe interna para cache com timestamp
+    private static class CacheEntry {
+        List<SearchResult> results;
+        long timestamp;
+
+        CacheEntry(List<SearchResult> results) {
+            this.results = results;
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
+
     @Override
     public List<SearchResult> search(List<String> terms, int pageNumber, int pageSize) throws RemoteException {
         if (terms == null || terms.isEmpty()) return Collections.emptyList();
@@ -134,12 +152,15 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
 
         long start = System.nanoTime();
 
-        List<SearchResult> cached = cache.get(key);
-        if (cached != null) {
+        CacheEntry cached = cache.get(key);
+        if (cached != null && (System.currentTimeMillis() - cached.timestamp) < CACHE_TTL_MS) {
             double msCached = (System.nanoTime() - start) / 1_000_000.0;
             searchTimes.add(msCached);
-            return paginate(cached, pageNumber, pageSize);
+            return paginate(cached.results, pageNumber, pageSize);
         }
+
+        // Se expirou → remove
+        cache.remove(key);
 
         Exception lastEx = null;
         Set<String> urls = null;
@@ -175,7 +196,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         }
 
         results.sort((a, b) -> Integer.compare(b.score, a.score));
-        cache.put(key, results);
+        cache.put(key, new CacheEntry(results));
 
         long end = System.nanoTime();
         double ms = (end - start) / 1_000_000.0;
@@ -203,7 +224,10 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
             url_queue q = (url_queue) registry.lookup("queue");
 
             q.addUrl(url);
-            cache.clear();
+
+            // Limpando cache antigo que contém este URL
+            cache.entrySet().removeIf(entry -> entry.getValue().results.stream().anyMatch(r -> r.url.equals(url)));
+
             System.out.println("[Gateway] URL enviada para indexação: " + url);
             return true;
 
@@ -238,13 +262,12 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
                 .toList();
         m.put("topSearches", top10);
 
-        // tempos médios (ms) -> converte para décimas se desejares (o frontend mostra "décimas")
+        // tempos médios (ms)
         double avgMs = searchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-        // se quiseres em décimas de segundo:
-        double avgDecimas = avgMs / 100.0; // ms -> décimas de segundo (1 décima = 100 ms)
+        double avgDecimas = avgMs / 100.0; // ms -> décimas de segundo
         m.put("avgTimes", Map.of("global", avgDecimas));
 
-        // stats dos barrels (cada barrel devolve um Map). Inserimos o id/nome em cada Map.
+        // stats dos barrels
         List<Map<String, Object>> bs = new ArrayList<>();
         for (int i = 0; i < barrels.size(); i++) {
             BarrelInterface b = barrels.get(i);
@@ -252,7 +275,6 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
             try {
                 Map<String, Object> stats = b.getStats();
                 if (stats == null) stats = new HashMap<>();
-                // inclui id (pode já existir em barrel, mas garantimos)
                 stats.putIfAbsent("id", id);
                 bs.add(stats);
             } catch (RemoteException e) {

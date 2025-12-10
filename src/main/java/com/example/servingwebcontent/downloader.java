@@ -1,4 +1,5 @@
 package com.example.servingwebcontent;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -16,7 +17,19 @@ public class downloader {
     static int parallel_threshold = 8;
 
     public static Document download_page(String url) throws IOException {
-        return Jsoup.connect(url).userAgent("GoogolBot/1.0").timeout(10_000).get();
+        try {
+        return Jsoup.connect(url)
+                .userAgent("GoogolBot/1.0")
+                .timeout(10_000)
+                .get();
+    } catch (HttpStatusException e) {
+        System.err.println("Erro HTTP ao tentar aceder: " + url + " Status: " + e.getStatusCode());
+    } catch (IOException e) {
+        System.err.println("Erro de I/O ao tentar aceder: " + url + " Mensagem: " + e.getMessage());
+    } catch (IllegalArgumentException e) {
+        System.err.println("URL inválida: " + url);
+    }
+    return null; 
     }
 
     public static String getText(Document doc) { return doc.text(); }
@@ -81,8 +94,10 @@ public class downloader {
                                 System.out.println("[Downloader] A indexar: " + url);
                                 System.out.println("Thread: " + Thread.currentThread().getName());
                                 System.out.println("==============================\n");
-
                                 Document doc = download_page(url);
+                                if(doc==null){
+                                    continue;
+                                }
                                 String texto = getText(doc);
                                 addUrls(urls, doc);
 

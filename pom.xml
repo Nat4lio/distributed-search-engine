@@ -22,24 +22,32 @@
     </properties>
 
     <dependencies>
-        <!-- Spring Boot Web -->
+
+        <!-- Spring Web (REST + MVC + Controllers) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Thymeleaf -->
+        <!-- Thymeleaf Templates -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!-- JSoup (HTML parser) -->
+        <!-- WebSockets (STOMP + SockJS + messaging) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- HTML Parser (usado para preview/SearchController) -->
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.17.2</version>
         </dependency>
+
     </dependencies>
 
     <build>

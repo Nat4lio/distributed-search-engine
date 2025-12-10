@@ -3,36 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <title>Resultados</title>
+    <style>
+        body { font-family: arial, sans-serif; margin: 0; }
+        .header { padding: 20px 30px; border-bottom: 1px solid #ebebeb; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; z-index: 100; }
+        .home-btn { background: #f1f3f4; padding: 8px 16px; border-radius: 4px; text-decoration: none; color: #333; font-size: 14px; }
+        .home-btn:hover { background: #e8eaed; }
+        .results-container { max-width: 650px; margin-left: 150px; padding: 20px; }
+        @media (max-width: 800px) { .results-container { margin: 20px; } }
+        .result-item { margin-bottom: 26px; }
+        .title { color: #1a0dab; font-size: 20px; text-decoration: none; }
+        .title:hover { text-decoration: underline; }
+        .url { color: #202124; font-size: 14px; display: block; }
+        .pagination { margin-top: 40px; display: flex; gap: 15px; }
+
+        /* new controls */
+        .controls { margin-top: 12px; display:flex; gap:10px; align-items:center; }
+        .btn { padding:8px 12px; border-radius:6px; cursor:pointer; border: none; }
+        .btn-hn { background:#1a73e8; color:white; }
+        .btn-ia { background:#34a853; color:white; }
+        .analysis-box { margin-top:20px; background:#f7f7f7; padding:12px; border-radius:6px; white-space:pre-wrap; }
+    </style>
 </head>
 <body>
+    <div class="header">
+        <div style="font-weight:bold; font-size:20px;">Resultados</div>
+        <a th:href="@{/}" class="home-btn">🏠 Voltar ao Menu</a>
+    </div>
 
-<h2>Resultados de "<span th:text="${query}"></span>"</h2>
+    <div class="results-container">
+        <h3 th:if="${results != null}" style="color:#5f6368; font-weight:normal; font-size:14px;">
+            Resultados para "<span id="query-text" th:text="${query}"></span>"
+        </h3>
 
-<ul>
-    <li th:each="r : ${results}">
-        <a th:href="${r.url}" th:text="${r.title}"></a>
-        <br>
-        <span th:text="${r.snippet}"></span>
-    </li>
-</ul>
+        <div class="controls">
+            <button id="btn-index-hn" class="btn btn-hn">Indexar via HackerNews</button>
+            <button id="btn-openai" class="btn btn-ia">Gerar análise IA</button>
+            <span id="controls-status" style="margin-left:10px;color:#555;"></span>
+        </div>
 
-<hr>
+        <div id="results-list">
+            <div th:each="r : ${results}" class="result-item">
+                <span class="url" th:text="${r.url}"></span>
+                <a class="title" th:href="${r.url}" th:text="${r.title}"></a>
+                <div style="color:#4d5156; font-size:14px; margin-top:3px;" th:text="${r.snippet}"></div>
+            </div>
 
-<!-- PAGINAÇÃO -->
-<div>
-    <!-- Página anterior -->
-    <a th:if="${page > 1}"
-       th:href="@{/results(q=${query}, p=${page - 1})}">
-        ◀ Página anterior
-    </a>
+            <div th:if="${results == null or results.isEmpty()}">
+                <p>Nenhum resultado encontrado.</p>
+            </div>
+        </div>
 
-    &nbsp;&nbsp; Página <span th:text="${page}"></span> &nbsp;&nbsp;
+        <div class="pagination" th:if="${results != null and !results.isEmpty()}">
+            <a th:if="${page > 1}" th:href="@{/results(q=${query}, p=${page - 1})}">◀ Anterior</a>
+            <span>Página <span th:text="${page}"></span></span>
+            <a th:href="@{/results(q=${query}, p=${page + 1})}">Próxima ▶</a>
+        </div>
 
-    <!-- Próxima página -->
-    <a th:href="@{/results(q=${query}, p=${page + 1})}">
-        Próxima página ▶
-    </a>
-</div>
+        <div id="openai-result" class="analysis-box" style="display:none; margin-top:20px;"></div>
 
+    </div>
+
+    <script>
+        // Extrair query do template Thymeleaf
+        const query = document.getElementById('query-text') ? document.getElementById('query-text').textContent.trim() : "";
+
+        const btnHN = document.getElementById('btn-index-hn');
+        const btnAI = document.getElementById('btn-openai');
+        const status = document.getElementById('controls-status');
+        const openaiBox = document.getElementById('openai-result');
+
+        btnHN?.addEventListener('click', async () => {
+            status.textContent = "A indexar (HN)...";
+            try {
+                const res = await fetch('/api/index-hn', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: query, maxCheck: 100})
+                });
+                const j = await res.json();
+                if (res.ok) {
+                    status.textContent = `Encontradas ${j.found}, enfileiradas ${j.enqueued}`;
+                } else {
+                    status.textContent = `Erro: ${j.error || JSON.stringify(j)}`;
+                }
+            } catch (e) {
+                status.textContent = "Erro ao contactar servidor.";
+            }
+        });
+
+        btnAI?.addEventListener('click', async () => {
+            status.textContent = "A gerar análise IA...";
+            // junta snippets (títulos + snippets) dos resultados visíveis
+            const nodes = document.querySelectorAll('.result-item');
+            let snippets = "";
+            nodes.forEach(n => {
+                const title = n.querySelector('.title') ? n.querySelector('.title').textContent.trim() : "";
+                const snippet = n.querySelector('div') ? n.querySelector('div').textContent.trim() : "";
+                snippets += title + "\n" + snippet + "\n\n";
+            });
+
+            try {
+                const res = await fetch('/api/openai', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: query, snippets: snippets})
+                });
+                const j = await res.json();
+                if (res.ok && j.analysis) {
+                    openaiBox.style.display = 'block';
+                    openaiBox.textContent = j.analysis;
+                    status.textContent = "Análise gerada.";
+                } else {
+                    openaiBox.style.display = 'block';
+                    openaiBox.textContent = "Erro: " + (j.error || JSON.stringify(j));
+                    status.textContent = "Erro na geração.";
+                }
+            } catch (e) {
+                status.textContent = "Erro ao contactar servidor.";
+            }
+        });
+    </script>
 </body>
 </html>

@@ -2,15 +2,19 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Indexado</title>
+    <title>Sucesso</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 50px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 500px; }
+        .btn { background-color: #1a73e8; color: white; text-decoration: none; padding: 10px 24px; border-radius: 4px; display: inline-block; margin-top: 20px; }
+    </style>
 </head>
 <body>
-
-<h1>Página Indexada!</h1>
-
-<p>URL: <span th:text="${url}"></span></p>
-
-<a href="/">Voltar</a>
-
+    <div class="card">
+        <h1 style="color:#34a853;">✅ Página Indexada!</h1>
+        <p>URL adicionado:</p>
+        <code style="background:#eee; padding:5px; display:block; margin:10px 0;" th:text="${url}"></code>
+        <a th:href="@{/}" class="btn">🏠 Voltar ao Menu</a>
+    </div>
 </body>
 </html>

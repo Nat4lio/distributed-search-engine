@@ -2,19 +2,25 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Indexar</title>
+    <title>Indexar URL</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f8; display: flex; justify-content: center; padding-top: 50px; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        input[type="text"] { width: 100%; padding: 12px; margin: 10px 0 20px 0; border: 1px solid #dfe1e5; border-radius: 4px; box-sizing: border-box; }
+        button { background: #1a73e8; color: white; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background: #1557b0; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #1a73e8; text-decoration: none; }
+    </style>
 </head>
 <body>
-
-<h1>Indexar Página</h1>
-
-<form action="/index" method="post">
-    <label>URL:</label>
-    <input type="text" name="url" required>
-    <button type="submit">Indexar</button>
-</form>
-
-<a href="/">Voltar</a>
-
+    <div class="card">
+        <a th:href="@{/}" class="back-link">⬅ Voltar ao Menu</a>
+        <h2>Indexar Nova Página</h2>
+        <form action="/index" th:action="@{/index}" method="post">
+            <label>URL da Página:</label>
+            <input type="text" name="url" placeholder="https://..." required>
+            <button type="submit">Indexar URL</button>
+        </form>
+    </div>
 </body>
 </html>

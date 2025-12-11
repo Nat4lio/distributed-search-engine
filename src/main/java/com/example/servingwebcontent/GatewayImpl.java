@@ -62,7 +62,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     private void healthMonitor() {
     while (true) {
         try {
-            Thread.sleep(10_000);
+            Thread.sleep(500);
 
             synchronized (barrels) {
                 for (int i = barrels.size() - 1; i >= 0; i--) {
@@ -173,9 +173,6 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
     @Override
     public synchronized String registerNewBarrel(BarrelInterface stub) throws RemoteException {
         String name = "Barrel" + barrelCounter.getAndIncrement();
-        if (statsService != null) {
-        statsService.pushStats(getStats());
-        }
 
         // Se já existir pelo menos um barrel, tenta sincronizar a partir do último
         if (!barrels.isEmpty()) {
@@ -208,6 +205,9 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         barrels.add(stub);
         barrelNames.add(name);
         System.out.println("[Gateway] Novo barrel registado: " + name);
+        if (statsService != null) {
+        statsService.pushStats(getStats());
+        }
         return name;
     }
 

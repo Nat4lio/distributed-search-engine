@@ -359,6 +359,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
         // tempos médios (ms)
         double avgMs = searchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
         double avgDecimas = avgMs / 100.0; // ms -> décimas de segundo
+        avgDecimas = Math.round(avgDecimas * 10000.0) / 10000.0; 
         m.put("avgTimes", Map.of("global", avgDecimas));
 
         // stats dos barrels

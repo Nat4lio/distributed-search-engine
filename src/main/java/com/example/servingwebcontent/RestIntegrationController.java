@@ -6,16 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Controller REST para integrações externas:
- * - /api/index-hn  -> indexar URLs do HackerNews
- * - /api/openai    -> gerar análise com OpenAI
- */
 @RestController
 @RequestMapping("/api")
 public class RestIntegrationController {
@@ -24,16 +16,18 @@ public class RestIntegrationController {
     private final OpenAIService openAIService;
     private final RmiGatewayClient rmiGatewayClient;
 
-    public RestIntegrationController(HackerNewsService hnService, OpenAIService openAIService, RmiGatewayClient rmiGatewayClient) {
+    public RestIntegrationController(HackerNewsService hnService,
+                                     OpenAIService openAIService,
+                                     RmiGatewayClient rmiGatewayClient) {
         this.hnService = hnService;
         this.openAIService = openAIService;
         this.rmiGatewayClient = rmiGatewayClient;
     }
 
-    /**
-     * Indexa URLs do Hacker News que contenham os termos.
-     * Body esperado: {"query":"termos", "maxCheck":100}
-     */
+    // ----------------------------------------------------------------------
+    // INDEXAR VIA HACKER NEWS
+    // ----------------------------------------------------------------------
+
     @PostMapping("/index-hn")
     public ResponseEntity<?> indexFromHackerNews(@RequestBody Map<String, Object> body) {
         String query = (body.get("query") == null) ? "" : body.get("query").toString();
@@ -42,19 +36,20 @@ public class RestIntegrationController {
         try {
             List<String> urls = hnService.findTopStoriesContaining(query, maxCheck);
             int enqueued = 0;
+
             GatewayInterface gw = rmiGatewayClient.getGateway();
             for (String url : urls) {
                 try {
                     boolean ok = gw.indexPage(url);
                     if (ok) enqueued++;
-                } catch (RemoteException re) {
-                    // continue; não queremos falhar tudo por 1 url
-                }
+                } catch (RemoteException ignored) {}
             }
-            Map<String,Object> res = new HashMap<>();
+
+            Map<String, Object> res = new HashMap<>();
             res.put("found", urls.size());
             res.put("enqueued", enqueued);
             res.put("urls", urls);
+
             return ResponseEntity.ok(res);
 
         } catch (Exception e) {
@@ -62,27 +57,35 @@ public class RestIntegrationController {
         }
     }
 
-    /**
-     * Gera análise com OpenAI.
-     * Body esperado: {"query":"...","snippets":"..."}
-     */
+    // ----------------------------------------------------------------------
+    // IA FREE OU OPENAI (dependendo se tens chave)
+    // ----------------------------------------------------------------------
+
     @PostMapping("/openai")
     public ResponseEntity<?> openAiAnalysis(@RequestBody Map<String, Object> body) {
-        String query = (body.get("query") == null) ? "" : body.get("query").toString();
-        String snippets = (body.get("snippets") == null) ? "" : body.get("snippets").toString();
+
+        String query = body.getOrDefault("query", "").toString();
+        String snippets = body.getOrDefault("snippets", "").toString();
 
         try {
-            if (!openAIService.hasApiKey()) {
-                return ResponseEntity.status(400).body(Map.of("error", "OPENAI_API_KEY not set"));
-            }
+            // construir prompt final
+            String prompt = 
+                    "Faça uma análise breve e contextualizada para a pesquisa: \"" + query + "\".\n\n" +
+                    "Resultados obtidos:\n" + snippets + "\n\n" +
+                    "Resuma os pontos principais e indique a relevância geral.";
 
-            String prompt = "Faça uma análise breve e contextualizada para a query: \"" + query + "\".\n\n" +
-                    "Contexto / snippets:\n" + snippets + "\n\n" +
-                    "Resuma pontos importantes e indique se os resultados parecem relevantes.";
+            // chama a IA correta (OpenAI se tiver key, HuggingFace se não tiver)
             String analysis = openAIService.generateAnalysis(prompt);
-            return ResponseEntity.ok(Map.of("analysis", analysis));
+
+            return ResponseEntity.ok(Map.of(
+                    "provider", openAIService.hasApiKey() ? "openai" : "huggingface",
+                    "analysis", analysis
+            ));
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", e.getMessage()
+            ));
         }
     }
 }

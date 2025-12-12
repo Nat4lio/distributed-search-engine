@@ -5,22 +5,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/**
- * Serviço simples para chamar a API de Chat Completions da OpenAI.
- * Lê chave da variável de ambiente OPENAI_API_KEY.
- *
- * Nota: este código usa o endpoint "v1/chat/completions". Ajusta o modelo se necessário.
- */
 @Service
 public class OpenAIService {
 
@@ -29,7 +20,7 @@ public class OpenAIService {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public OpenAIService() {
-        this.apiKey = System.getenv("OPENAI_API_KEY"); // segura: não colocamos chave no código
+        this.apiKey = System.getenv("OPENAI_API_KEY"); 
         this.client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -40,49 +31,92 @@ public class OpenAIService {
     }
 
     /**
-     * Gera uma análise textual dado um prompt (já construído pelo controller).
-     * Retorna a string com o texto gerado ou lança Exception com mensagem amigável.
+     * PONTO PRINCIPAL:
+     * - Se existir chave OpenAI → usa OpenAI
+     * - Senão → usa HuggingFace FLAN-T5 Base (gratuito, sem key)
+     * - Se falhar → fallback local simples
      */
     public String generateAnalysis(String prompt) throws Exception {
-        if (!hasApiKey()) throw new IllegalStateException("OPENAI_API_KEY not set");
+        if (hasApiKey()) {
+            try {
+                return callOpenAI(prompt);
+            } catch (Exception e) {
+                // continua para fallback gratuito
+            }
+        }
 
-        // Construir body
+        try {
+            return callHuggingFace(prompt);
+        } catch (Exception e) {
+            // fallback final
+            return "[Fallback Local]\nTermos analisados:\n" + prompt;
+        }
+    }
+
+    // =============================================================
+    // 1) CHAMADA OFICIAL À OPENAI (SE TIVER KEY)
+    // =============================================================
+    private String callOpenAI(String prompt) throws Exception {
+
         Map<String, Object> body = new HashMap<>();
-        body.put("model", "gpt-4o-mini"); // sugestão; podes mudar para o modelo da tua conta
+        body.put("model", "gpt-4o-mini");
         List<Map<String,String>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", "You are a helpful search summarizer."));
+        messages.add(Map.of("role", "system", "content", "You are a helpful summarizer."));
         messages.add(Map.of("role", "user", "content", prompt));
         body.put("messages", messages);
-        body.put("max_tokens", 450);
+        body.put("max_tokens", 300);
 
-        String bodyJson = mapper.writeValueAsString(body);
+        String json = mapper.writeValueAsString(body);
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                .timeout(Duration.ofSeconds(30))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(bodyJson))
+                .timeout(Duration.ofSeconds(30))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
 
-        if (resp.statusCode() >= 400) {
-            throw new RuntimeException("OpenAI API error: HTTP " + resp.statusCode() + " - " + resp.body());
-        }
+        if (resp.statusCode() >= 400)
+            throw new RuntimeException("OpenAI error: " + resp.body());
 
         JsonNode root = mapper.readTree(resp.body());
-        // path defensivo: choices[0].message.content
-        JsonNode choices = root.path("choices");
-        if (choices.isArray() && choices.size() > 0) {
-            JsonNode msg = choices.get(0).path("message").path("content");
-            if (!msg.isMissingNode()) return msg.asText();
+        return root.path("choices").get(0).path("message").path("content").asText();
+    }
+
+
+    // =============================================================
+    // 2) IA GRATUITA — HuggingFace FLAN-T5 BASE
+    // =============================================================
+    private String callHuggingFace(String prompt) throws Exception {
+
+        Map<String, Object> body = Map.of(
+                "inputs", "Summarize this text:\n\n" + prompt
+        );
+
+        String json = mapper.writeValueAsString(body);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("https://api-inference.huggingface.co/models/google/flan-t5-base"))
+                .timeout(Duration.ofSeconds(45))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+        if (resp.statusCode() >= 400)
+            throw new RuntimeException("HuggingFace error: " + resp.body());
+
+        JsonNode root = mapper.readTree(resp.body());
+
+        if (root.isArray() && root.size() > 0) {
+            return root.get(0).path("generated_text").asText();
         }
 
-        // fallback: tenta 'text' (modelos legacy)
-        JsonNode text = root.path("choices").path(0).path("text");
-        if (!text.isMissingNode()) return text.asText();
-
-        throw new RuntimeException("OpenAI: unexpected response format");
+        return "Resumo não disponível.";
     }
+
 }
+

@@ -7,6 +7,7 @@ Manual to execute the program
 5 - launch the downloader.java
 
 with all theses steps done the program its running at his full power at localhost:8080
+http://localhost:8080
 
 Authors:
 João Natálio - 2023205576

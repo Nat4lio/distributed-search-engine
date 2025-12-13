@@ -1,147 +1,227 @@
-Relatório SD
-Autores: Rui Camarão e João Natálio
+Projeto Googol – Meta 2
 
-1. Testes de software
+Sistemas Distribuídos 2025/2026
 
-	Indexar novo URL introduzido por utilizador - Pass
+1. Objetivos do Projeto
 
-	Indexar iterativamente ou recursivamente todos os URLs encontrados - Pass
+O objetivo desta segunda meta consiste no desenvolvimento de uma interface Web para o motor de pesquisa Googol, previamente implementado na Meta 1. Pretende-se disponibilizar as mesmas funcionalidades da aplicação distribuída original através de um navegador Web, mantendo a interoperabilidade com os componentes existentes via RPC/RMI.
 
-	Pesquisar páginas que contenham um conjunto de palavras - Pass
+Adicionalmente, esta meta introduz:
 
-	Páginas ordenadas por número de ligações recebidas de outras páginas - Pass
+Programação Web segundo o modelo MVC
 
-	Consultar lista de páginas com ligações para uma página específica - Pass
+Comunicação assíncrona com WebSockets
 
-	Página de estatísticas atualizada em tempo real - Pass
+Integração com serviços REST externos
 
-	Resultados da pesquisa agrupados de 10 em 10 - Pass
+Atualização de estatísticas em tempo real
 
-	A informação é idêntica em todos os storage barrels (reliable multicast) - Pass
-	Testamos o seu funcionamento com prints no momento exato da indexação feita pelos robots com o horario da operação e o barrel que foi atualizado
+2. Visão Geral
 
-	Serviço correto se funcionar pelo menos um storage barrel e a gateway -Pass
-	Funciona
+O sistema Googol é um motor de pesquisa distribuído que indexa páginas Web automaticamente e permite aos utilizadores realizar pesquisas por termos. A arquitetura baseia-se em múltiplos componentes distribuídos:
 
-	Os storage barrels recuperam o seu estado se avariarem (crash) - Pass
-	Se um barrel crashar e iniciarmos um novo que vem com o mesmo index, este vem com a informação do que crashou mais a nova dos outros barrels
+Gateway: coordena pesquisas e estatísticas
 
-	Balanceamento da carga nas pesquisas sobre os storage barrels - Pass
-	Método chooseBarrel trata disso
+Barrels: armazenam o índice invertido
 
-	Os downloaders executam em paralelo - Pass
-	Testamos com prints com o index do robot no momento em que agarra um ulr e notamos a variação dos indexs em tempo real
+Downloaders: efetuam crawling e indexação
 
-	A gateway recupera de quaisquer avarias internas (não têm efeito nos clientes) - Pass
-	Se um barrel crashar, o gateway tira o da lista e não impacta em nada
+Fila de URLs: gere URLs pendentes
 
-	Pedidos de indexação são respondidos apenas por um downloader - Pass
-	Existe mecanismo de sincronização na queue
+Servidor Web (Meta 2): interface Web para utilizadores
 
-2. Arquitetura de Software
-	
+A aplicação Web desenvolvida nesta meta atua como cliente do Gateway via RMI, garantindo que utilizadores Web e desktop acedem à mesma informação.
+
+3. Arquitetura do Sistema
+3.1 Visão Geral da Arquitetura
+
+A arquitetura segue um modelo cliente–servidor distribuído, onde:
+
+O Servidor Web comunica com o Gateway via RPC/RMI
+
+O Gateway comunica com os Barrels
+
+Os Downloaders alimentam o sistema através da fila de URLs
+
+Os Browsers comunicam via HTTP e WebSockets com o Servidor Web
+
+Os diferentes componentes do sistema (Gateway, Barrels, Downloaders e Servidor Web) podem ser executados em processos e máquinas distintas, comunicando exclusivamente através de mecanismos de rede, cumprindo os requisitos de um sistema distribuído.
+
+3.2 Componentes Principais
 Gateway
 
-	Coordenador central.
-	
-	Recebe queries dos clientes.
+GatewayInterface
 
-	Distribui pesquisas entre os barrels (round-robin).
+GatewayImpl
 
-	Indexa páginas enviadas pelo downloader.
+RmiGatewayClient
 
-	Tolerante a falhas dos barrels ativos.
+Responsável por:
 
-	Mantém cache das pesquisas mais recentes.
+Receber pedidos de pesquisa
 
-Barrel	
+Coordenar o acesso aos Barrels
 
-	Armazena o índice invertido palavra → conjunto de URLs.
+Manter estatísticas globais
 
-	Mantém informações de páginas (PageInfo) e links de entrada (inboundLinks).
+Medir tempos médios de resposta
 
-	Permite atualização incremental de índice (putIndex) e consulta (searchUrls).
+Barrels
 
-	Pode ser sincronizado com outros barrels ao ser registado no Gateway.
+BarrelInterface
 
-Downloader / Indexador
+BarrelImpl
 
-	Baixa páginas web.
+Cada Barrel mantém:
 
-	Extrai texto, título, snippet e links de saída.
+Índice invertido
 
-	Constroi mapa invertido (palavra → URL) e envia para os barrels via Gateway.
+Informação sobre páginas
 
-	Suporta indexação paralela usando ForkJoinPool.
+Lista de URLs que apontam para cada página (backlinks)
 
-	Detecta dinamicamente novos barrels.
+Downloaders e Fila de URLs
 
-Client
+downloader
 
-	Interface para pesquisa e obtenção de informações.
+url_queue
 
-	Não precisa saber detalhes de qual barrel serve a query.
+url_queue_run
 
+Responsáveis por:
 
+Crawling automático
 
-Downloader baixa páginas e envia PageInfo + índice parcial para o Gateway.
+Indexação recursiva e iterativa
 
-Gateway distribui o índice pelos barrels ativos.
+Descoberta de novos URLs
 
-Clientes enviam queries para o Gateway.
+4. Interface Web (MVC)
 
-Gateway consulta os barrels (round-robin), agrega resultados, ordena e devolve ao cliente.
+A aplicação Web segue a arquitetura Model–View–Controller.
 
-Gateway mantém cache de queries recentes.
+4.1 Controllers
 
+IndexController
+Página inicial da aplicação.
 
+SearchController
+Processa pesquisas por termos, apresenta resultados paginados (10 por página) e ordenados por relevância.
 
-3. Funcionamento do RPC/RMI
+InboundController
+Permite a submissão manual de URLs para indexação.
 
+StatsWebController
+Apresenta estatísticas globais do sistema.
 
-Interfaces remotas:
+RestIntegrationController
+Gere pedidos relacionados com integrações REST externas.
 
-	BarrelInterface → métodos como putIndex, searchUrls, getPageInfo, inboundLinks.
+4.2 Models
 
-	GatewayInterface → métodos como search, indexPage, inboundLinks, getStats.
+SearchResult
+Representa um resultado de pesquisa (URL, título e citação).
 
-Componentes:
+PageInfo
+Contém metadados sobre uma página indexada.
 
-	Cada Barrel implementa UnicastRemoteObject e se registra no RMI Registry.
+4.3 Services
 
-	Gateway implementa UnicastRemoteObject, é o ponto de contacto do cliente.
+StatsService
+Fornece estatísticas agregadas (top pesquisas, Barrels ativos e tempos médios).
 
-	Comunicação entre cliente ↔ Gateway e Gateway ↔ Barrel via RMI.
-	
-Mecanismos adicionais:
+5. Funcionalidades Implementadas
+5.1 Indexação de URLs
 
-	ping() usado para verificar se barrels estão ativos.
+Submissão manual de URLs via interface Web
 
-	Synchronização de novos barrels com índices existentes (getFullIndex + putIndex).
+Indexação automática e recursiva através dos Downloaders
 
+Utilização de fila de URLs para crawling iterativo
 
+5.2 Pesquisa
 
-4. Replicação (Reliable Multicast)
+Pesquisa por múltiplos termos
 
-Quando um novo barrel é registado, o Gateway sincroniza-o com o último barrel ativo:
+Resultados apenas com páginas que contêm todos os termos
 
-Gateway chama getFullIndex no barrel existente.
+Paginação de resultados (10 por página)
 
-Copia índices invertidos e páginas.
+5.3 Ordenação por Relevância
 
-Chama putIndex no novo barrel.
+Resultados ordenados com base no número de ligações recebidas
 
-Garante que todos os barrels têm cópias consistentes do índice.
+Barrels mantêm informação de backlinks por URL
 
-Permite tolerância a falhas: se um barrel cair, os restantes continuam a servir queries.
+5.4 Consulta de Backlinks
 
+Possibilidade de visualizar páginas que apontam para um determinado URL
 
-5. Distribuição de tarefas
+6. Notificações em Tempo Real (WebSockets)
 
-Distribuimos o trabalho como foi recomendado no enunciado: o Rui estava responsável pelo downloader, barrels e a queue, enquanto o João pelo gatway e o cliente, apesar de darmos review ao código um do outro e resolvemos bugs um do outro.
+A aplicação utiliza WebSockets para atualização em tempo real de informação global do sistema.
 
+6.1 Configuração
 
+WebSocketConfig
 
+6.2 Informação Atualizada
 
+Top 10 pesquisas mais comuns
 
+Lista de Barrels ativos e respetivos tamanhos do índice
 
+Tempo médio de resposta por Barrel
+
+Estas informações são enviadas apenas quando ocorrem alterações, evitando mecanismos de polling ou refresh periódico.
+
+7. Integração com Serviços REST
+7.1 Hacker News
+
+HackerNewsService
+
+Funcionalidades:
+
+Obtenção das “top stories”
+
+Filtragem de URLs que contenham os termos da pesquisa
+
+Indexação automática desses URLs no Googol
+
+7.2 OpenAI
+
+OpenAIService
+
+Funcionalidades:
+
+Geração de análise textual contextualizada
+
+Baseada nos termos da pesquisa e/ou excertos dos resultados
+
+Integração via API REST de chat completions
+
+8. Integração com a Meta 1 (RPC/RMI)
+
+A aplicação Web comunica exclusivamente com o sistema distribuído existente através de RPC/RMI, garantindo:
+
+Interoperabilidade total
+
+Partilha de estado entre clientes Web e desktop
+
+Reutilização integral da lógica distribuída desenvolvida na Meta 1
+
+9. Testes Realizados
+Teste	Descrição	Resultado
+T1	Submissão manual de URL	Pass
+T2	Indexação recursiva de URLs	Pass
+T3	Pesquisa por múltiplos termos	Pass
+T4	Paginação de resultados	Pass
+T5	Atualização de estatísticas via WebSocket	Pass
+T6	Indexação via HackerNews API	Pass
+T7	Geração de texto via OpenAI API		Not Pass fully	
+
+11. Conclusão
+
+Ao longo do trabalho trabalhamos em conjunto não ficando cada um responsavel por um tópico em específico porque estavamos sempre em inter-ajuda
+
+A Meta 2 permitiu transformar o Googol num verdadeiro serviço Web distribuído, acessível globalmente, mantendo os princípios de interoperabilidade, escalabilidade e modularidade. A utilização de MVC, WebSockets e APIs REST resultou numa aplicação moderna, extensível e totalmente alinhada com os requisitos definidos para a unidade curricular de Sistemas Distribuídos.

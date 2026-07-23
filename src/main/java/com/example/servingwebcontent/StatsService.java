@@ -3,7 +3,6 @@ package com.example.servingwebcontent;
 import java.util.Map;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
 import org.springframework.stereotype.Service;
 
 /**
@@ -27,10 +26,10 @@ public class StatsService  {
                 messagingTemplate.convertAndSend("/topic/stats", stats);
             }
         } 
-             catch (Exception e) {
+            catch (Exception e) {
             messagingTemplate.convertAndSend("/topic/stats", Map.of(
                     "error", "exception",
-                    "message", e.getMessage()
+                    "message", e.getMessage() 
             ));
         }
     }

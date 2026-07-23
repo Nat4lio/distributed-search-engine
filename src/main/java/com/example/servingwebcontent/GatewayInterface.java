@@ -18,6 +18,5 @@ public interface GatewayInterface extends Remote {
 
     // Permite a um Barrel pedir registo/nome único ao Gateway
     String registerNewBarrel(BarrelInterface stub) throws RemoteException;
-   
 }
 

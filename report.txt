@@ -218,7 +218,7 @@ T3	Pesquisa por múltiplos termos	Pass
 T4	Paginação de resultados	Pass
 T5	Atualização de estatísticas via WebSocket	Pass
 T6	Indexação via HackerNews API	Pass
-T7	Geração de texto via OpenAI API		Not Pass fully	
+T7	Geração de texto via OpenAI API		Pass	
 
 11. Conclusão
 

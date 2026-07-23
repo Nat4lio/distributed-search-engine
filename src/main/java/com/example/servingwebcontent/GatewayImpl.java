@@ -139,7 +139,7 @@ public class GatewayImpl extends UnicastRemoteObject implements GatewayInterface
                             barrelNames.remove(i);
                             barrelSizes.remove(name);
                         } catch (Exception ex) {
-                           
+                            
                         }
                         if (statsService != null) {
                             Map<String, Object> snapshot = null;

@@ -10,7 +10,6 @@ import jakarta.annotation.PostConstruct;
 
 /**
  * Simple bean to encapsulate RMI lookup of the Gateway.
- * Adjust host/port/serviceName if your registry uses different values.
  */
 @Component
 public class RmiGatewayClient {
